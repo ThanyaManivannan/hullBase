@@ -1,11 +1,16 @@
 Package: hullBase
-Title: What the Package Does (One Line, Title Case)
+Title: Adaptive, Concave-Aware Rubberband Baseline Correction
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    person("Thanya", "Manivannan", email = "thanyamanivannan@gmail.com", role = c("aut", "cre"))
+Description: Provides an automatic, concave-aware extension of the classic
+    rubberband (convex hull) method for baseline correction of spectra such
+    as Fourier-transform infrared (FTIR) data. Standard rubberband baselines
+    cannot represent concave regions of the true background. This package
+    detects concave hull segments automatically and refines them using
+    thresholds derived from each spectrum's own noise level, removing the
+    need for user-supplied tuning parameters.
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 8.1.0
