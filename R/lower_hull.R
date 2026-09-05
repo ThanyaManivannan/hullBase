@@ -25,24 +25,24 @@ lower_hull <- function(x, y) {
     stop("Need at least 2 points to compute a hull.")
   }
 
-  # sort by x, just in case the spectrum wasn't already in wavenumber order
+  # sort everything by x first, in case the spectrum was not already in order
   ord <- order(x)
   x <- x[ord]
   y <- y[ord]
 
-  # cross() tests whether going O -> A -> B turns left (>0) or not (<=0)
+  # cross() checks which way three points turn
+  # a positive result means the turn goes left, which is what a lower hull needs
   cross <- function(ox, oy, ax, ay, bx, by) {
     (ax - ox) * (by - oy) - (ay - oy) * (bx - ox)
   }
 
-  hull_idx <- integer(0)  # indices (into sorted x/y) that survive onto the hull
-
+  hull_idx <- integer(0)  # keeps track of which points are on the hull so far
   for (i in seq_len(n)) {
     while (length(hull_idx) >= 2) {
       o <- hull_idx[length(hull_idx) - 1]
       a <- hull_idx[length(hull_idx)]
       if (cross(x[o], y[o], x[a], y[a], x[i], y[i]) <= 0) {
-        hull_idx <- hull_idx[-length(hull_idx)]  # drop the last point, it's not on the hull
+        hull_idx <- hull_idx[-length(hull_idx)]  # this point turns the wrong way, so remove it
       } else {
         break
       }
@@ -50,10 +50,10 @@ lower_hull <- function(x, y) {
     hull_idx <- c(hull_idx, i)
   }
 
-  # straight-line interpolation between hull points, evaluated at every original x
+  # connect the hull points with straight lines and read off the baseline at every x
   baseline_sorted <- approx(x[hull_idx], y[hull_idx], xout = x)$y
 
-  # put the result back into the caller's original point order
+  # put the values back in the same order the spectrum was given in
   baseline <- numeric(n)
   baseline[ord] <- baseline_sorted
   baseline
