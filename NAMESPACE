@@ -3,6 +3,7 @@
 S3method(correct,rubberband_baseline)
 export(correct)
 export(lower_hull)
+export(noise_estimate)
 export(rubberband_baseline)
 importFrom(Rcpp,sourceCpp)
 useDynLib(hullBase, .registration = TRUE)
