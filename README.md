@@ -27,10 +27,10 @@ Tests for `correct.rubberband_baseline()` are in `tests/testthat/test-rubberband
 
 Four tests:
 
-- Checks the result against a worked example, to confirm the function gives the exact right answer on a case that can be checked by hand, not just a plausible looking one.
-- Checks the corrected values are never negative, since a baseline correction that overshoots would be a bug, the corrected spectrum should not dip below the baseline it was just measured against.
-- Checks unsorted x input gets sorted before use, since a real spectrum is not guaranteed to arrive already ordered by wavenumber, and this confirms the function does not silently give the wrong answer if it is not.
-- Checks an error is raised for fewer than 2 points, since a hull needs at least two points to mean anything, and this confirms the function fails clearly instead of crashing or returning nonsense.
+- Result verified against a hand calculated example, confirming the function returns the correct baseline.
+- Corrected values checked to confirm none are negative, since a correction should not push the spectrum below its own baseline.
+- Unsorted x input tested to confirm the function still sorts correctly and returns the right result.
+- Input of fewer than two points tested to confirm the function raises an error rather than failing silently or crashing.
 
 ## Test results
 
