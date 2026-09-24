@@ -77,7 +77,7 @@ refine_segment(x = 1:5, y = c(0, 2, 3, 2, 0), noise = 0.6)
 devtools::test()
 ```
 
-Expected result: 23 tests, 0 failures.
+Expected result: 27 tests, 0 failures.
 
 ### Step F: Deliberately Breaking the Functions
 
