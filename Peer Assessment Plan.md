@@ -7,70 +7,89 @@ Repository: https://github.com/ThanyaManivannan/hullBase
 
 ```r
 devtools::install_github("ThanyaManivannan/hullBase")
-```
-
-## Functions implemented so far
-
-### lower_hull(x, y)
-Computes the plain rubberband baseline. Builds the lower convex hull of the spectrum using a hand-written monotone chain algorithm (not R's built-in `chull()`). Returns the baseline value at every input point.
-
-Check by running:
-```r
 library(hullBase)
-lower_hull(c(1, 2, 3, 4, 5), c(5, 2, 3, 2, 5))
-#> [1] 5 2 2 2 5
 ```
 
-### noise_estimate(x, y)
-Estimates a spectrum's own noise level from the median absolute deviation of consecutive differences, divided by sqrt(2).
+## Check everything at once
 
-Check by running:
+```r
+devtools::test()
+```
+Expect: 27 tests, 0 failures. This runs every test written for every function listed below, and is the fastest way to confirm nothing is broken before checking functions individually.
+
+## Functions to check one by one
+
+### 1. lower_hull(x, y)
+What it does: estimates a spectrum's baseline using the classic rubberband method, the straight line connecting the lowest points of the spectrum. Peaks sitting above this line are correctly excluded. Returns the baseline value at every input point, same length as the input.
+
+Run:
+```r
+lower_hull(c(1, 2, 3, 4, 5), c(5, 2, 3, 2, 5))
+```
+Expect:
+```
+[1] 5 2 2 2 5
+```
+The middle point (value 3) sits above the straight line joining the two low points on either side of it, so it gets pulled down to 2, matching the baseline there.
+
+Should error on: `lower_hull(1, 1)`, since a hull needs at least 2 points. If it silently returns something instead of erroring, that is a bug.
+
+### 2. noise_estimate(x, y)
+What it does: estimates how noisy a spectrum is, directly from the data, with no value set by hand. This number is what the two functions further down use to decide how much correction is real versus just noise.
+
+Run:
 ```r
 noise_estimate(1:7, c(0, 2, 0, 2, 0, 2, 0))
-#> [1] 2.096713
+```
+Expect:
+```
+[1] 2.096713
 ```
 
-### rubberband_baseline(x, y) and correct(model)
-`rubberband_baseline()` builds an S3 object holding a spectrum's sorted x and y values. `correct()` is an S3 method for this class; it calls a compiled Rcpp function, `lower_hull_cpp()` (in `src/lower_hull_cpp.cpp`), to find the hull, then returns the baseline-corrected spectrum (y minus baseline). This is the object-oriented, Rcpp-backed function in the package.
+Should error on: `noise_estimate(1, 1)`, since it needs at least 2 points to measure any variation at all.
 
-Check by running:
+### 3. rubberband_baseline(x, y) and correct(model)
+What it does: the object oriented version of the plain baseline correction. `rubberband_baseline()` builds an S3 object from the spectrum, and `correct()` is an S3 method that runs a compiled C++ function to find the hull, then returns the corrected spectrum (the original values minus the baseline).
+
+Run:
 ```r
 model <- rubberband_baseline(c(1, 2, 3, 4, 5), c(5, 2, 3, 2, 5))
 correct(model)
-#> [1] 0 0 1 0 0
 ```
+Expect:
+```
+[1] 0 0 1 0 0
+```
+The two low points and the two points beside them land exactly on the baseline, so they correct to 0. Only the middle peak (originally 3, baseline 2) is left with a value, 1.
 
-### detect_concave_segments(x, y, noise)
-Looks at every straight segment of the rubberband baseline and flags the ones likely hiding a real concave dip. A segment gets flagged when it contains a genuine notch: a point that sits lower than both of its immediate neighbours while still sitting further above the chord than the noise level. This tells a real hidden dip apart from an ordinary single peak, which does not create a notch shape.
+### 4. detect_concave_segments(x, y, noise)
+What it does: this is the new part of the project. A plain rubberband baseline draws a straight line across any region where the true background actually curves downward, since it can only connect points with straight segments. This function looks at each straight segment and flags the ones that are probably hiding a real dip like this, by checking for a genuine notch shape, a point lower than both of its immediate neighbours, that still sits higher than the noise level.
 
-Check by running:
+Run:
 ```r
 x <- 1:11
 y <- c(0, 0, 0, 0.3, 0.5, 0.2, 0.5, 0.3, 0, 0, 0)
 detect_concave_segments(x, y, noise = 0.1)
-#>   left_idx right_idx
-#> 1        3         9
 ```
+Expect:
+```
+  left_idx right_idx
+1        3         9
+```
+This means the section between point 3 and point 9 (where the small dip at point 6 sits between two bumps) has been flagged as needing correction.
 
-### refine_segment(x, y, noise)
-Pulls the baseline down inside one flagged segment so it follows the shape of the spectrum there, instead of staying a straight line. Each pass replaces every interior point with the smaller of its own value and the average of its two neighbours, and stops once the change between passes drops below the spectrum's noise level.
+### 5. refine_segment(x, y, noise)
+What it does: takes one section flagged by the function above and pulls the baseline down within it, so it follows the real shape of the data there instead of staying a straight line. It stops automatically once further changes are smaller than the noise level, so it does not just keep shrinking forever.
 
-Check by running:
+Run:
 ```r
 refine_segment(x = 1:5, y = c(0, 2, 3, 2, 0), noise = 0.6)
-#> [1] 0.0 1.0 1.5 1.0 0.0
+```
+Expect:
+```
+[1] 0.0 1.0 1.5 1.0 0.0
 ```
 
-## Automated tests
+## Not built yet
 
-All five functions above have testthat tests. Run the full suite after cloning the repository:
-```r
-devtools::test()
-```
-Expected: 27 tests, 0 failures.
-
-## Not yet implemented
-
-`detect_concave_segments()` and `refine_segment()` are each tested and working correctly on their own, but they are not yet wired into `correct()`. Calling `correct()` right now still only returns the plain rubberband result, it does not yet automatically detect and refine concave segments as one pipeline. Connecting the two into a single automatic correction is the next step.
-
-Also not yet built: the `print()`, `summary()`, and `plot()` methods, a `simulate_spectrum()` synthetic data generator for repeatable comparative testing, a compiled C++ version of `refine_segment()`, and validation against real spectroscopy data.
+`detect_concave_segments()` and `refine_segment()` each work correctly and are tested on their own, but they are not yet connected to `correct()`. Right now `correct()` still only returns the plain rubberband result, it does not yet run detection and refinement automatically. `print()`, `summary()`, `plot()`, and a `simulate_spectrum()` synthetic data generator are also not built yet.
