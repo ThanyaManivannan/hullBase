@@ -1,8 +1,15 @@
-test_that("detect_concave_segments flags a segment with a hidden peak", {
+test_that("detect_concave_segments does not flag a simple single peak", {
   result <- detect_concave_segments(x = 1:5, y = c(0, 0.5, 0.6, 0.5, 0), noise = 0.1)
+  expect_equal(nrow(result), 0)
+})
+
+test_that("detect_concave_segments flags a genuine notch hidden between two peaks", {
+  x <- 1:11
+  y <- c(0, 0, 0, 0.3, 0.5, 0.2, 0.5, 0.3, 0, 0, 0)
+  result <- detect_concave_segments(x = x, y = y, noise = 0.1)
   expect_equal(nrow(result), 1)
-  expect_equal(result$left_idx, 1)
-  expect_equal(result$right_idx, 5)
+  expect_equal(result$left_idx, 3)
+  expect_equal(result$right_idx, 9)
 })
 
 test_that("detect_concave_segments does not flag a small bump within noise", {
@@ -16,8 +23,8 @@ test_that("detect_concave_segments returns nothing for two points with no gap be
 })
 
 test_that("detect_concave_segments flagged boundaries are real hull vertices", {
-  x <- 1:5
-  y <- c(0, 0.5, 0.6, 0.5, 0)
+  x <- 1:11
+  y <- c(0, 0, 0, 0.3, 0.5, 0.2, 0.5, 0.3, 0, 0, 0)
   result <- detect_concave_segments(x = x, y = y, noise = 0.1)
   baseline <- lower_hull(x, y)
   expect_equal(y[result$left_idx], baseline[result$left_idx])

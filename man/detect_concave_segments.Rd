@@ -24,25 +24,27 @@ segment is flagged, the data frame has zero rows.
 \description{
 Looks at every straight segment of the rubberband (lower hull) baseline
 and flags the ones that are probably hiding a real concave dip in the
-true baseline, usually because a peak sits on top of that dip and stops
-any single point from getting low enough to become its own hull vertex.
+true baseline, usually because two or more peaks sit on top of that
+dip and stop any single point from getting low enough to become its
+own hull vertex.
 }
 \details{
 A hull vertex is any point where the rubberband baseline touches the
 spectrum exactly, since that is how \code{lower_hull()} builds the
 baseline. For each pair of neighbouring hull vertices, this function
-looks at every real data point between them and measures how far above
-the straight chord it sits. If every single point in that gap sits
-further above the chord than the noise level, this is a sign that
-something, usually a peak, is hiding a real dip in the true baseline
-underneath, and the segment gets flagged.
-
-A rare limitation worth noting: if a point happens to sit exactly on
-the straight line between two vertices purely by coincidence, it could
-be mistaken for a vertex itself. This is unlikely with real noisy
-data, but is a known edge case rather than a hidden one.
+looks for a genuine notch among the points in between: a point that
+sits lower than both of its immediate neighbours, while still sitting
+further above the straight chord than the noise level. A notch like
+this is a sign that two or more peaks are sitting on top of a real dip
+in the baseline, hiding it. A single ordinary peak does not create a
+notch, since it only rises and falls once, so it is correctly left
+alone. Segments with fewer than 3 points between their two anchors are
+never flagged, since a genuine notch needs at least 3 points to show a
+dip shape at all.
 }
 \examples{
-detect_concave_segments(x = 1:5, y = c(0, 0.5, 0.6, 0.5, 0), noise = 0.1)
+x <- 1:11
+y <- c(0, 0, 0, 0.3, 0.5, 0.2, 0.5, 0.3, 0, 0, 0)
+detect_concave_segments(x, y, noise = 0.1)
 
 }

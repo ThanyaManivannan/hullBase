@@ -38,6 +38,16 @@
 #' can only pull an overly high straight line baseline down closer to
 #' where the data actually sits.
 #'
+#' Running this for long enough will always shrink a segment all the way
+#' down to the same straight line plain rubberband already gives, since
+#' that flat line is the only shape where nothing changes anymore. Any
+#' real improvement this function makes comes from stopping before that
+#' point is reached, not from reaching some better final answer. This is
+#' a known property of this whole family of method, not specific to this
+#' implementation, and is the same reason the paper this idea is adapted
+#' from needed an empirically chosen stopping threshold rather than one
+#' derived from first principles.
+#'
 #' @examples
 #' refine_segment(x = 1:5, y = c(0, 2, 3, 2, 0), noise = 0.6)
 #'
@@ -51,6 +61,11 @@ refine_segment <- function(x, y, noise, max_iter = 200) {
 
   baseline <- y
 
+  # a correction needs to spread inward from both edges before it reaches
+  # the middle of a wide segment, so give it enough passes to get there
+  # before the noise based stopping rule is allowed to trigger
+  min_passes <- ceiling((n - 2) / 2)
+
   for (pass in seq_len(max_iter)) {
     old <- baseline
 
@@ -59,7 +74,7 @@ refine_segment <- function(x, y, noise, max_iter = 200) {
     baseline[2:(n - 1)] <- pmin(old[2:(n - 1)], neighbour_avg)
 
     change <- max(abs(baseline - old))
-    if (change < noise) {
+    if (pass >= min_passes && change < noise) {
       break
     }
   }

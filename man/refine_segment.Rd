@@ -49,6 +49,16 @@ Because a point can only ever get smaller or stay the same, this
 process cannot accidentally erase a genuine dip in the spectrum. It
 can only pull an overly high straight line baseline down closer to
 where the data actually sits.
+
+Running this for long enough will always shrink a segment all the way
+down to the same straight line plain rubberband already gives, since
+that flat line is the only shape where nothing changes anymore. Any
+real improvement this function makes comes from stopping before that
+point is reached, not from reaching some better final answer. This is
+a known property of this whole family of method, not specific to this
+implementation, and is the same reason the paper this idea is adapted
+from needed an empirically chosen stopping threshold rather than one
+derived from first principles.
 }
 \examples{
 refine_segment(x = 1:5, y = c(0, 2, 3, 2, 0), noise = 0.6)
