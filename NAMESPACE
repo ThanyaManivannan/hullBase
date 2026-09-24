@@ -2,6 +2,7 @@
 
 S3method(correct,rubberband_baseline)
 export(correct)
+export(detect_concave_segments)
 export(lower_hull)
 export(noise_estimate)
 export(refine_segment)
