@@ -2,65 +2,66 @@
 % Please edit documentation in R/refine_segment.R
 \name{refine_segment}
 \alias{refine_segment}
-\title{Refine One Flagged Concave Segment}
+\title{Correct One Concave Segment by Automatic Local Bending}
 \usage{
-refine_segment(x, y, noise, max_iter = 200)
+refine_segment(x, y, peak_width, noise = NULL, bend_factor = 2, max_depth = 3)
 }
 \arguments{
-\item{x}{Numeric vector of wavenumbers for the segment, including both
-anchor points at the start and end. Assumes roughly evenly spaced
-points, which is normal for FTIR data. Not used directly in the
-calculation, kept for interface consistency with the rest of the
-package.}
+\item{x}{Numeric vector of wavenumbers for the segment. The first and
+last points (after sorting) are the two hull vertices that bound it.}
 
-\item{y}{Numeric vector of absorbance values for the segment, including
-both anchor points at the start and end.}
+\item{y}{Numeric vector of absorbance values, the same length as \code{x}.}
 
-\item{noise}{A single numeric value giving the spectrum's noise level,
-normally the result of \code{noise_estimate()}. Used as the stopping
-threshold for the shrinking process.}
+\item{peak_width}{Width, in the units of \code{x}, of the widest peak or the
+widest group of overlapping peaks.}
 
-\item{max_iter}{Maximum number of passes to run, used only as a safety
-limit in case the noise based stopping rule is never reached.
-Defaults to 200.}
+\item{noise}{Noise standard deviation. If \code{NULL}, it is estimated with
+\code{noise_estimate()}.}
+
+\item{bend_factor}{Safety factor \code{k} applied to the estimated dome
+height. Defaults to 2. Must be at least 1.}
+
+\item{max_depth}{Largest number of bending levels. Defaults to 3.}
 }
 \value{
-A numeric vector the same length as \code{y}, giving the refined
-baseline for this segment. The first and last values are unchanged,
-since they are the fixed anchor points.
+A numeric vector the same length as \code{x}: the corrected baseline
+for the segment, in the same order as the input. The two end values
+are unchanged and the baseline never goes above \code{y}.
 }
 \description{
-Pulls the baseline estimate down within a single flagged hull segment,
-so it follows the real shape of the spectrum there instead of the
-straight chord between the two hull points. The two endpoints of the
-segment are treated as fixed anchors and are never changed, since they
-are already confirmed hull points.
+Corrects the baseline under one hull segment that hides a concave
+(dome shaped) background. A bowl shaped curve is added so the dome
+becomes convex, the lower hull is taken, and the bowl is removed again.
+How strongly to bend is worked out from the data.
 }
 \details{
-Each pass looks at every interior point and replaces it with the
-smaller of its own current value and the average of its two
-neighbours, using the neighbour values from the start of that pass,
-not values already updated earlier in the same pass. This point is
-stated explicitly here because it was not clear in the paper this idea
-is adapted from, which makes that paper's method hard to reproduce
-exactly.
+The bowl is \code{q = (x - xL) * (x - xR) / (W / 2)^2}, where \code{W = xR - xL}.
+It is zero at both ends, -1 in the middle, and has constant curvature
+\code{8 / W^2}. The dome height is estimated as the largest value of
+\code{e / -q} over the middle half of the segment, where \code{e} is the gap
+above the chord after erosion with the same window as
+\code{detect_concave_segments()}. The bend strength is \code{bend_factor} times
+this height. The bent data \code{y + c * q} is hulled and \code{c * q} is
+subtracted again. For a parabolic dome any strength at least equal to
+its height gives the exact dome. Other shapes need more, for example
+\code{pi^2 / 8} times the height for a sine arch, which is why the default
+factor is 2. The value 2 was chosen by simulation as a margin that
+covers these shapes without removing peaks.
 
-Because a point can only ever get smaller or stay the same, this
-process cannot accidentally erase a genuine dip in the spectrum. It
-can only pull an overly high straight line baseline down closer to
-where the data actually sits.
-
-Running this for long enough will always shrink a segment all the way
-down to the same straight line plain rubberband already gives, since
-that flat line is the only shape where nothing changes anymore. Any
-real improvement this function makes comes from stopping before that
-point is reached, not from reaching some better final answer. This is
-a known property of this whole family of method, not specific to this
-implementation, and is the same reason the paper this idea is adapted
-from needed an empirically chosen stopping threshold rather than one
-derived from first principles.
+After bending, any part of the segment where the remaining gap still
+passes the test of \code{detect_concave_segments()} is bent again, and the
+extra correction is added on top, up to \code{max_depth} levels.
 }
 \examples{
-refine_segment(x = 1:5, y = c(0, 2, 3, 2, 0), noise = 0.6)
+x <- seq(0, 10, length.out = 201)
+dome <- 2 * sin(pi * x / 10)
+y <- dome + 1.5 * exp(-((x - 5) / 0.4)^2)
+b <- refine_segment(x, y, peak_width = 2, noise = 0)
+plot(x, y, type = "l")
+lines(x, b, col = "blue")
 
+}
+\references{
+Beleites, C. (2015). Fitting baselines to spectra. hyperSpec package
+vignette.
 }
