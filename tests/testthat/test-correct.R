@@ -44,9 +44,9 @@ test_that("correct improves a lot on concave and mixed baselines", {
   for (shape in c("concave", "mixed")) {
     sim <- simulate_spectrum(baseline = shape)
     fit <- correct(sim, peak_width = 300)
-    rmse_alb <- sqrt(mean((fit$baseline - sim$baseline)^2))
+    rmse_adaptive <- sqrt(mean((fit$baseline - sim$baseline)^2))
     rmse_plain <- sqrt(mean((fit$rubberband - sim$baseline)^2))
-    expect_lt(rmse_alb, rmse_plain / 5)
+    expect_lt(rmse_adaptive, rmse_plain / 5)
   }
 })
 
@@ -84,7 +84,7 @@ test_that("print shows a short overview and returns the object invisibly", {
   set.seed(9)
   sim <- simulate_spectrum(baseline = "concave")
   fit <- correct(sim, peak_width = 300)
-  expect_output(print(fit), "ALB Rubberband")
+  expect_output(print(fit), "local bending")
   expect_output(print(fit), "concave segments refined: 1 of")
   expect_output(shown <- withVisible(print(fit)))
   expect_false(shown$visible)

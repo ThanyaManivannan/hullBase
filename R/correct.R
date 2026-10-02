@@ -1,12 +1,11 @@
 #' Baseline Correct a Spectrum
 #'
 #' Runs the full hullBase baseline correction and returns a
-#' `BaselineModel` object. With `method = "adaptive"` (the default) this is
-#' the Adaptive Local Bending Rubberband: the plain rubberband baseline is
-#' computed, hull segments that hide a concave background are found with
-#' [detect_concave_segments()], and each one is corrected by local bending
-#' as in [refine_segment()]. With `method = "rubberband"` the plain
-#' rubberband baseline is returned.
+#' `BaselineModel` object. With `method = "adaptive"` (the default) the
+#' plain rubberband baseline is computed first, hull segments that hide a
+#' concave background are found with [detect_concave_segments()], and each
+#' one is corrected by local bending as in [refine_segment()]. With
+#' `method = "rubberband"` the plain rubberband baseline is returned.
 #'
 #' @param x Numeric vector of wavenumbers, or for `correct.data.frame()` a
 #'   data frame with columns `x` and `y`.

@@ -15,7 +15,7 @@
 #'
 #' @export
 print.BaselineModel <- function(x, ...) {
-  label <- if (x$method == "adaptive") "adaptive (ALB Rubberband)" else "rubberband"
+  label <- if (x$method == "adaptive") "adaptive (local bending)" else "rubberband"
   cat("<BaselineModel>\n")
   cat("  method :", label, "\n")
   cat("  points :", length(x$x), "from", min(x$x), "to", max(x$x), "\n")

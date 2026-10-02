@@ -52,12 +52,11 @@ method) and \code{call}. All vectors are in the same order as the input.
 }
 \description{
 Runs the full hullBase baseline correction and returns a
-\code{BaselineModel} object. With \code{method = "adaptive"} (the default) this is
-the Adaptive Local Bending Rubberband: the plain rubberband baseline is
-computed, hull segments that hide a concave background are found with
-\code{\link[=detect_concave_segments]{detect_concave_segments()}}, and each one is corrected by local bending
-as in \code{\link[=refine_segment]{refine_segment()}}. With \code{method = "rubberband"} the plain
-rubberband baseline is returned.
+\code{BaselineModel} object. With \code{method = "adaptive"} (the default) the
+plain rubberband baseline is computed first, hull segments that hide a
+concave background are found with \code{\link[=detect_concave_segments]{detect_concave_segments()}}, and each
+one is corrected by local bending as in \code{\link[=refine_segment]{refine_segment()}}. With
+\code{method = "rubberband"} the plain rubberband baseline is returned.
 }
 \examples{
 sim <- simulate_spectrum(baseline = "concave")
