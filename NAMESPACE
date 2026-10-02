@@ -7,9 +7,11 @@ export(lower_hull)
 export(noise_estimate)
 export(refine_segment)
 export(rubberband_baseline)
+export(simulate_spectrum)
 importFrom(Rcpp,sourceCpp)
 importFrom(stats,
   approx,
-  median
+  median,
+  rnorm
 )
 useDynLib(hullBase, .registration = TRUE)
