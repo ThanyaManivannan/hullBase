@@ -1,6 +1,5 @@
 # Peer Assessment Plan: hullBase Package
 
-**Assessee:** Thanya Manivannan
 **Assessor:** Jennifer Hanna
 
 ## 1. Repository Link and Installation
