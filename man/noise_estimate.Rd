@@ -7,32 +7,39 @@
 noise_estimate(x, y)
 }
 \arguments{
-\item{x}{Numeric vector of wavenumbers. Not used directly in the
-calculation, but kept as an argument for interface consistency with
-\code{lower_hull(x, y)}, since both are meant to be used together when
-analysing a spectrum.}
+\item{x}{Numeric vector of wavenumbers. Used to sort the spectrum
+before differencing.}
 
-\item{y}{Numeric vector of absorbance values.}
+\item{y}{Numeric vector of absorbance values, the same length as \code{x}.}
 }
 \value{
-A single numeric value: the estimated noise standard deviation.
+A single number: the estimated noise standard deviation.
 }
 \description{
-Estimates the standard deviation of measurement noise directly from the
-spectrum, using the median absolute deviation (MAD) of the point-to-point
-differences \code{diff(y)}. A slowly varying real signal barely changes between
-adjacent points, so the spread of these differences is dominated by noise
-rather than signal; the median-based MAD estimator is also robust to any
-peaks (large jumps) that remain.
+Estimates the standard deviation of the measurement noise directly from
+the spectrum, using the median absolute deviation (MAD) of the second
+differences of \code{y}.
 }
 \details{
-This is a simple, first-pass estimator. Because it only looks at
-point-to-point differences, a smooth but strongly \emph{curved} baseline with
-zero real noise can inflate the estimate, since the difference of a curved
-function is not constant. This limitation is deliberately tested rather
-than hidden. See \code{test-noise_estimate.R} for the test that documents it.
+The second difference \code{y[i+1] - 2*y[i] + y[i-1]} removes any straight
+line trend exactly, and turns a smooth curved baseline into an almost
+constant value, which the MAD removes when it subtracts the median.
+What remains is noise. Each second difference combines three noise
+values with weights 1, -2 and 1, so its variance is
+\code{(1 + 4 + 1) * sigma^2 = 6 * sigma^2}. Dividing the MAD by \code{sqrt(6)}
+therefore gives the noise of a single point. The MAD uses medians, so
+the few large values at peaks do not inflate the estimate. The input
+is checked and sorted with the same rules as every hullBase function.
 }
 \examples{
-noise_estimate(1:7, c(0, 2, 0, 2, 0, 2, 0))
+noise_estimate(1:7, c(0, 0, 1, 0, 0, 0, 0))
 
+sim <- simulate_spectrum(baseline = "concave", noise_sd = 0.02)
+noise_estimate(sim$x, sim$y)
+
+}
+\references{
+Rousseeuw, P. J. and Croux, C. (1993). Alternatives to the median
+absolute deviation. Journal of the American Statistical Association,
+88(424), 1273 to 1283.
 }

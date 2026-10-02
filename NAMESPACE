@@ -11,6 +11,7 @@ export(simulate_spectrum)
 importFrom(Rcpp,sourceCpp)
 importFrom(stats,
   approx,
+  mad,
   median,
   rnorm
 )
