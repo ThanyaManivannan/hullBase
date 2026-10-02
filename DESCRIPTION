@@ -18,6 +18,8 @@ Roxygen: list(markdown = TRUE)
 URL: https://github.com/ThanyaManivannan/hullBase
 BugReports: https://github.com/ThanyaManivannan/hullBase/issues
 Suggests: 
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0
@@ -27,3 +29,4 @@ Imports:
     stats
 LinkingTo:
     Rcpp
+VignetteBuilder: knitr

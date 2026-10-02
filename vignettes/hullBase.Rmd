@@ -1,0 +1,205 @@
+---
+title: "Introduction to hullBase"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to hullBase}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      fig.width = 7, fig.height = 4.5)
+```
+
+```{r setup}
+library(hullBase)
+```
+
+## Overview
+
+hullBase removes the baseline from spectra such as FTIR spectra using the
+rubberband method. The rubberband baseline is the lower convex hull of
+the spectrum, which works well for flat, sloped and bowl shaped
+baselines. It cannot follow a concave (dome shaped) baseline, because a
+convex hull can only bend upwards. Over a dome it draws a straight line
+instead, and part of the background is left in the corrected spectrum.
+
+This package adds a fix for that limitation, called Adaptive Local
+Bending Rubberband (ALB Rubberband). It finds the parts of the hull that
+hide a dome and corrects only those parts.
+
+## Example data
+
+`simulate_spectrum()` builds a test spectrum with a known baseline,
+following the simulation design of Zhang et al. (2020). The spectrum is
+the sum of Gaussian peaks, a baseline and Gaussian noise.
+
+$$y = \sum_k a_k \exp\left[-\left(\frac{x - \mu_k}{w_k}\right)^2\right] + b(x) + \varepsilon$$
+
+Here the baseline is a concave arch and the noise level is set by a
+signal to noise ratio of 30 dB.
+
+```{r data}
+set.seed(1)
+sim <- simulate_spectrum(baseline = "concave", snr_db = 30)
+head(sim)
+```
+
+## Correcting a spectrum
+
+`correct()` runs the full method and returns a `BaselineModel` object.
+The only setting is `peak_width`, the width of the widest peak or group
+of overlapping peaks.
+
+```{r correct}
+fit <- correct(sim, peak_width = 300)
+fit
+summary(fit)
+```
+
+The plot shows the plain rubberband baseline (red, dashed) and the
+ALB Rubberband baseline (blue). The shaded part is where the correction
+was applied.
+
+```{r plot}
+plot(fit)
+plot(fit, which = "corrected")
+```
+
+Because the true baseline is known, the error of each method can be
+measured with the root mean square error (RMSE).
+
+```{r rmse}
+rmse <- function(b) sqrt(mean((b - sim$baseline)^2))
+c(rubberband = rmse(fit$rubberband), alb = rmse(fit$baseline))
+```
+
+## How the method works
+
+**1. Noise level.** `noise_estimate()` uses the median absolute
+deviation of the second differences. A second difference has noise
+variance $6\sigma^2$, so
+
+$$\hat\sigma = \frac{\mathrm{MAD}(y_{i+1} - 2y_i + y_{i-1})}{\sqrt 6}$$
+
+**2. Rubberband baseline.** `lower_hull()` finds the lower convex hull
+with the monotone chain algorithm (Andrew 1979) and joins the hull points
+with straight lines.
+
+**3. Finding concave segments.** For each straight segment of the hull,
+`detect_concave_segments()` takes the gap $g_i$ between the data and the
+segment and applies a moving minimum over a window as wide as
+`peak_width`.
+
+$$e_i = \min_{|j - i| \le m} g_j, \qquad m = \mathrm{round}\left(\frac{\texttt{peak\_width}}{2h}\right)$$
+
+Peaks are narrower than the window, so they are removed. A dome is wider,
+so it remains. A segment is flagged when the largest $e_i$ is above
+$2\hat\sigma\sqrt{2\ln n}$, twice the universal threshold of Donoho and
+Johnstone (1994).
+
+**4. Local bending.** `refine_segment()` adds a bowl $q(x)$ that is zero
+at both ends of the segment, takes the lower hull, and removes the bowl
+again. This is the bending idea of Beleites (2015), applied automatically
+to one segment at a time.
+
+$$q(x) = \frac{(x - x_L)(x - x_R)}{(W/2)^2}, \qquad b = \mathrm{hull}(y + cq) - cq$$
+
+The bend strength $c$ is twice the dome height estimated from $e_i$. A
+parabola needs a strength equal to its height, and other dome shapes need
+more, so the factor of 2 gives a margin.
+
+## Choosing peak_width
+
+`peak_width` should cover the widest peak or group of overlapping peaks.
+For a Gaussian peak this is about 2.5 times its full width at half
+maximum. If it is too small, overlapping peaks are mistaken for a dome.
+
+```{r peak-width}
+set.seed(3)
+convex <- simulate_spectrum(baseline = "convex")
+sum(detect_concave_segments(convex$x, convex$y, peak_width = 100)$flagged)
+sum(detect_concave_segments(convex$x, convex$y, peak_width = 300)$flagged)
+```
+
+With `peak_width = 100` two segments are wrongly flagged. With 300 none
+are.
+
+## Results
+
+Average RMSE over 10 simulated spectra for each baseline shape and noise
+level.
+
+```{r results}
+set.seed(2026)
+results <- data.frame()
+for (shape in c("concave", "mixed", "flat", "linear", "convex")) {
+  for (snr in c(30, 25)) {
+    err <- replicate(10, {
+      s <- simulate_spectrum(baseline = shape, snr_db = snr)
+      f <- correct(s, peak_width = 300)
+      c(sqrt(mean((f$rubberband - s$baseline)^2)),
+        sqrt(mean((f$baseline - s$baseline)^2)))
+    })
+    results <- rbind(results, data.frame(shape = shape, snr_db = snr,
+                                         rubberband = round(mean(err[1, ]), 3),
+                                         alb = round(mean(err[2, ]), 3)))
+  }
+}
+results
+```
+
+For concave and mixed baselines the error is much smaller. For flat,
+linear and convex baselines nothing is flagged, so the result is the same
+as the plain rubberband.
+
+## Compiled code
+
+The hull and the moving minimum are loops where each step depends on the
+previous one, so they are written in C++ with Rcpp. The moving minimum
+uses a monotone queue (Lemire 2006), so its speed does not depend on the
+window size. Plain R versions are kept in the package for comparison.
+
+```{r speed}
+x <- seq(400, 4000, length.out = 7200)
+y <- sin(x / 500) + rnorm(7200, 0, 0.01)
+time_it <- function(f) system.time(for (i in 1:50) f())[["elapsed"]]
+c(hull_R = time_it(function() hullBase:::lower_hull_r(x, y)),
+  hull_Cpp = time_it(function() hullBase:::lower_hull_cpp(x, y)),
+  erosion_R = time_it(function() hullBase:::erode(y, 150)),
+  erosion_Cpp = time_it(function() hullBase:::erode_cpp(y, 150)))
+```
+
+Times are in seconds for 50 runs.
+
+## Limitations
+
+* A peak wider than `peak_width` looks the same as a dome and is partly
+  removed as background.
+* The hull rests on the lowest noise values, so the baseline sits about
+  two noise standard deviations too low. This is true for any rubberband
+  baseline.
+* Inside a bent segment, a wide peak can be reported a few percent too
+  low.
+* The spectrum should start and end on baseline, because the first and
+  last points always lie on the hull.
+
+## References
+
+Andrew, A. M. (1979). Another efficient algorithm for convex hulls in two
+dimensions. Information Processing Letters, 9(5), 216 to 219.
+
+Beleites, C. (2015). Fitting baselines to spectra. hyperSpec package
+vignette.
+
+Donoho, D. L. and Johnstone, I. M. (1994). Ideal spatial adaptation by
+wavelet shrinkage. Biometrika, 81(3), 425 to 455.
+
+Lemire, D. (2006). Streaming maximum minimum filter using no more than
+three comparisons per element. Nordic Journal of Computing, 13(4),
+328 to 339.
+
+Zhang, F., Tang, X., Tong, A., Wang, B. and Wang, J. (2020). An automatic
+baseline correction method based on the penalized least squares method.
+Sensors, 20, 2015.
