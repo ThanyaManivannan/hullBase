@@ -1,5 +1,6 @@
 # Peer Assessment Plan: hullBase Package
 
+**Assessee:** Thanya Manivannan
 **Assessor:** Jennifer Hanna
 
 ## 1. Repository Link and Installation
@@ -18,7 +19,7 @@ library(hullBase)
 
 The unit tests are not part of the installed package. To run them, clone
 or download the repository, open `hullBase.Rproj` in RStudio, and use the
-commands in Step B.
+commands in Step B given below.
 
 ## 2. Overview of Implemented Functions
 
