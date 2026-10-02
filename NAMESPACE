@@ -8,5 +8,8 @@ export(noise_estimate)
 export(refine_segment)
 export(rubberband_baseline)
 importFrom(Rcpp,sourceCpp)
-importFrom(stats,approx)
+importFrom(stats,
+  approx,
+  median
+)
 useDynLib(hullBase, .registration = TRUE)
