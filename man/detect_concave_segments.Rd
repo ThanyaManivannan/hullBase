@@ -2,49 +2,53 @@
 % Please edit documentation in R/detect_concave_segments.R
 \name{detect_concave_segments}
 \alias{detect_concave_segments}
-\title{Flag Hull Segments That Likely Hide a Concave Baseline}
+\title{Find Hull Segments That Hide a Concave Baseline}
 \usage{
-detect_concave_segments(x, y, noise)
+detect_concave_segments(x, y, peak_width, noise = NULL)
 }
 \arguments{
-\item{x}{Numeric vector of wavenumbers. Need not be sorted, the
-function sorts internally, matching \code{lower_hull()}.}
+\item{x}{Numeric vector of wavenumbers. Need not be sorted.}
 
 \item{y}{Numeric vector of absorbance values, the same length as \code{x}.}
 
-\item{noise}{A single numeric value giving the spectrum's noise level,
-normally the result of \code{noise_estimate()}.}
+\item{peak_width}{Width, in the units of \code{x}, of the widest peak or the
+widest group of overlapping peaks in the spectrum.}
+
+\item{noise}{Noise standard deviation of the spectrum. If \code{NULL}, it is
+estimated with \code{noise_estimate()}.}
 }
 \value{
-A data frame with one row per flagged segment, and two
-columns, \code{left_idx} and \code{right_idx}. These are the positions (after
-sorting by x) of the two hull vertices bounding that segment. If no
-segment is flagged, the data frame has zero rows.
+A data frame with one row per hull segment and columns \code{left}
+and \code{right} (positions of the two hull vertices after sorting by x),
+\code{x_left} and \code{x_right} (their x values), \code{n_points}, \code{max_eroded_gap}
+and \code{flagged}. The threshold used and the window half width \code{m} are
+stored as the attributes \code{"threshold"} and \code{"m"}.
 }
 \description{
-Looks at every straight segment of the rubberband (lower hull) baseline
-and flags the ones that are probably hiding a real concave dip in the
-true baseline, usually because two or more peaks sit on top of that
-dip and stop any single point from getting low enough to become its
-own hull vertex.
+Checks every straight segment of the rubberband baseline and flags the
+ones whose data never comes back down to the segment within a window as
+wide as the widest peak. Peaks are narrower than the window and are
+ignored. A concave (dome shaped) baseline is wider and is flagged.
 }
 \details{
-A hull vertex is any point where the rubberband baseline touches the
-spectrum exactly, since that is how \code{lower_hull()} builds the
-baseline. For each pair of neighbouring hull vertices, this function
-looks for a genuine notch among the points in between: a point that
-sits lower than both of its immediate neighbours, while still sitting
-further above the straight chord than the noise level. A notch like
-this is a sign that two or more peaks are sitting on top of a real dip
-in the baseline, hiding it. A single ordinary peak does not create a
-notch, since it only rises and falls once, so it is correctly left
-alone. Segments with fewer than 3 points between their two anchors are
-never flagged, since a genuine notch needs at least 3 points to show a
-dip shape at all.
+For each segment, the gap \code{g = y - b} between the data and the straight
+hull segment is eroded with a moving minimum over \code{2 * m + 1} points,
+where \code{m = round(peak_width / (2 * h))} and \code{h} is the step between x
+values. Erosion removes anything narrower than the window, so peaks
+disappear and a dome remains. The segment is flagged when the largest
+eroded gap exceeds \code{2 * noise * sqrt(2 * log(n))}, twice the universal
+threshold of Donoho and Johnstone (1994), and the segment has at least
+\code{2 * m + 3} points.
 }
 \examples{
-x <- 1:11
-y <- c(0, 0, 0, 0.3, 0.5, 0.2, 0.5, 0.3, 0, 0, 0)
-detect_concave_segments(x, y, noise = 0.1)
+sim <- simulate_spectrum(baseline = "concave")
+detect_concave_segments(sim$x, sim$y, peak_width = 300)
 
+}
+\references{
+Donoho, D. L. and Johnstone, I. M. (1994). Ideal spatial adaptation by
+wavelet shrinkage. Biometrika, 81(3), 425 to 455.
+
+Serra, J. (1982). Image Analysis and Mathematical Morphology.
+Academic Press.
 }
