@@ -17,9 +17,9 @@ test_that("detect_concave_segments does not flag a small bump within noise", {
   expect_equal(nrow(result), 0)
 })
 
-test_that("detect_concave_segments returns nothing for two points with no gap between", {
-  result <- detect_concave_segments(x = c(1, 2), y = c(0, 0), noise = 0.1)
-  expect_equal(nrow(result), 0)
+test_that("detect_concave_segments errors on fewer than 5 points", {
+  expect_error(detect_concave_segments(x = c(1, 2), y = c(0, 0), noise = 0.1),
+               "at least 5 points")
 })
 
 test_that("detect_concave_segments flagged boundaries are real hull vertices", {

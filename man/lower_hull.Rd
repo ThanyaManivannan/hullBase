@@ -7,24 +7,44 @@
 lower_hull(x, y)
 }
 \arguments{
-\item{x}{Numeric vector of wavenumbers (or any x-axis values). Need not
-be sorted; the function sorts internally.}
+\item{x}{Numeric vector of wavenumbers. Need not be sorted.}
 
 \item{y}{Numeric vector of absorbance values, the same length as \code{x}.}
 }
 \value{
-A numeric vector the same length as \code{x}, giving the estimated
-baseline value at each point, in the same order as the input.
+A numeric vector the same length as \code{x}, giving the baseline at
+each point, in the same order as the input.
 }
 \description{
-Estimates a spectrum's baseline using the classic rubberband method: the
-baseline is the lower convex hull of the (x, y) points, linearly
-interpolated between hull vertices. Points that lie above the hull (such
-as spectral peaks) are correctly excluded from the baseline.
+Estimates a spectrum's baseline with the classic rubberband method. The
+baseline is the lower convex hull of the points, joined by straight
+lines between hull vertices. Peaks lie above the hull, so they are left
+out of the baseline.
+}
+\details{
+The input is first checked and sorted with \code{check_spectrum()}. The hull
+vertices are then found by Andrew's monotone chain algorithm, run in
+compiled C++ code for speed. For three points O, A and B, the cross
+product \code{(xA - xO) * (yB - yO) - (yA - yO) * (xB - xO)} is positive
+only when the slope increases from O to A to B. If it is zero or less,
+A cannot lie on the lower hull and is removed. Between neighbouring
+vertices L and R, the baseline is the straight line
+\code{yL + (yR - yL) * (x - xL) / (xR - xL)}.
+
+The result is the highest convex curve that never goes above the data.
+It follows straight and convex backgrounds exactly, but it cannot
+follow a concave (dome shaped) background, where it lays a straight
+chord instead.
 }
 \examples{
-x <- c(1, 2, 3, 4, 5)
-y <- c(5, 2, 3, 2, 5)
-lower_hull(x, y)
+lower_hull(c(1, 2, 3, 4, 5), c(5, 2, 3, 2, 5))
 
+sim <- simulate_spectrum(baseline = "convex", noise_sd = 0.01)
+plot(sim$x, sim$y, type = "l")
+lines(sim$x, lower_hull(sim$x, sim$y), col = "blue")
+
+}
+\references{
+Andrew, A. M. (1979). Another efficient algorithm for convex hulls in
+two dimensions. Information Processing Letters, 9(5), 216 to 219.
 }
