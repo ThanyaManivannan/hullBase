@@ -1,105 +1,230 @@
 # Peer Assessment Plan: hullBase Package
 
-## 1. Repository Link and Installation Instructions
+**Assessor:** Jennifer Hanna
 
-The package is hosted at:
+## 1. Repository Link and Installation
 
-https://github.com/ThanyaManivannan/hullBase
+Repository: https://github.com/ThanyaManivannan/hullBase
 
-Install and load it as follows:
+Install and load the package with the following commands. The package
+contains C++ code, so installing on Windows needs
+[Rtools](https://cran.r-project.org/bin/windows/Rtools/).
 
 ```r
 install.packages("devtools")
-devtools::install_github("ThanyaManivannan/hullBase")
-```
-
-```r
+devtools::install_github("ThanyaManivannan/hullBase", build_vignettes = TRUE)
 library(hullBase)
 ```
 
+The unit tests are not part of the installed package. To run them, clone
+or download the repository, open `hullBase.Rproj` in RStudio, and use the
+commands in Step B.
+
 ## 2. Overview of Implemented Functions
 
-- **`lower_hull(x, y)`**: computes the rubberband baseline directly, using a hand-written monotone chain algorithm to build the lower convex hull of the spectrum. This does not call R's built-in `chull()`, in line with the project requirement that the core method not depend on an existing implementation.
-- **`noise_estimate(x, y)`**: estimates a spectrum's own noise level from the median absolute deviation of the differences between consecutive points, divided by `sqrt(2)`.
-- **`rubberband_baseline(x, y)` and `correct(model)`**: `rubberband_baseline()` builds an S3 object holding a spectrum's sorted `x` and `y` values. `correct()` is the S3 method for this class. It calls a compiled Rcpp function, `lower_hull_cpp()`, to find the hull, then returns the spectrum with the baseline subtracted.
-- **`detect_concave_segments(x, y, noise)`**: examines each straight segment of the rubberband baseline and flags segments containing a genuine concave notch, distinguishing this from an ordinary single peak by checking whether an interior point sits below both of its neighbours while remaining above the noise threshold relative to the segment's chord.
-- **`refine_segment(x, y, noise)`**: locally corrects one flagged segment by iteratively replacing each interior point with the smaller of its own value and the average of its neighbours, stopping once the change between iterations falls below the estimated noise level.
+hullBase performs baseline correction of spectra such as FTIR spectra with
+the rubberband (lower convex hull) method. The rubberband baseline cannot
+follow a concave (dome shaped) baseline, so the package adds an automatic
+local bending step that finds and corrects those regions. All functions
+are implemented.
 
-## 3. Not Yet Implemented
+**Main function and S3 methods**
 
-`detect_concave_segments()` and `refine_segment()` are each tested and working independently, but are not yet connected into `correct()` as a single automatic pipeline. `correct()` currently returns only the plain rubberband result.
+* `correct()` runs the full correction and returns a `BaselineModel`
+  object. It has a default method for `x` and `y` vectors and a method for
+  data frames with `x` and `y` columns. `method = "rubberband"` gives the
+  plain rubberband baseline for comparison.
+* `print()`, `summary()` and `plot()` are methods for `BaselineModel`
+  objects.
 
-Also not yet built:
+**Steps of the method**
 
-- `print()`, `summary()`, and `plot()` S3 methods
-- A `simulate_spectrum()` synthetic data generator
-- A compiled C++ version of `refine_segment()`
-- Validation against real spectroscopy data
+* `noise_estimate()` estimates the noise standard deviation as the MAD of
+  the second differences divided by the square root of 6.
+* `lower_hull()` computes the plain rubberband baseline with the monotone
+  chain algorithm.
+* `detect_concave_segments()` finds hull segments that hide a concave
+  baseline, using a moving minimum (erosion) and a noise based threshold.
+* `refine_segment()` corrects one segment by bending it, taking the lower
+  hull, and unbending it.
 
-## 4. Package Testing Plan (How to Check the Functions)
+**Test data**
 
-### Step A: Documentation
+* `simulate_spectrum()` builds a spectrum with a known baseline from
+  Gaussian peaks, a baseline shape (`"concave"`, `"linear"`, `"convex"`,
+  `"flat"`, `"mixed"`) and Gaussian noise.
 
-Confirm that documentation is complete by running `?lower_hull`, `?noise_estimate`, `?rubberband_baseline`, `?correct`, `?detect_concave_segments`, and `?refine_segment`, and checking that each function's arguments, return value, and purpose are described. No vignette is available at this stage.
+**Compiled code (internal)**
 
-### Step B: Baseline and Noise Functions
+* `lower_hull_cpp()` and `erode_cpp()` are written in C++ with Rcpp. Plain R
+  versions `lower_hull_r()` and `erode()` are kept for comparison. These are
+  not exported, so they are reached with `hullBase:::`.
+
+## 3. Package Testing Plan
+
+### Step A: Package Structure and Documentation
+
+1. Check the repository contains `DESCRIPTION`, `NAMESPACE`, `LICENSE`,
+   `R/`, `src/`, `man/`, `tests/` and `vignettes/`.
+2. Open the help pages and check that the arguments, return values and
+   examples are documented.
 
 ```r
-# Rubberband baseline on a hand-worked example
-lower_hull(c(1, 2, 3, 4, 5), c(5, 2, 3, 2, 5))
-
-# Noise estimate on a known alternating sequence
-noise_estimate(1:7, c(0, 2, 0, 2, 0, 2, 0))
+help(package = "hullBase")
+?correct
+?detect_concave_segments
+?refine_segment
 ```
 
-### Step C: S3 Object and Rcpp-backed Correction
+3. Open the vignette, which explains the method, formulas, results and
+   limitations.
 
 ```r
-model <- rubberband_baseline(c(1, 2, 3, 4, 5), c(5, 2, 3, 2, 5))
-correct(model)
+vignette("hullBase")
 ```
 
-### Step D: Concave Segment Detection and Refinement
+4. Run the help page examples.
 
 ```r
-# Detect a concave dip within a flat baseline segment
-x <- 1:11
-y <- c(0, 0, 0, 0.3, 0.5, 0.2, 0.5, 0.3, 0, 0, 0)
-detect_concave_segments(x, y, noise = 0.1)
-
-# Refine a flagged segment so the baseline follows the dip
-refine_segment(x = 1:5, y = c(0, 2, 3, 2, 0), noise = 0.6)
+example(correct)
+example(refine_segment)
 ```
 
-### Step E: Automated Test Suite
+### Step B: Run the Package Tests
+
+From the cloned repository in RStudio:
 
 ```r
 devtools::test()
+# Expected: [ FAIL 0 | WARN 0 | SKIP 0 | PASS 450 ]
+
+devtools::check()
+# Expected: 0 errors | 0 warnings | 0 notes
 ```
 
-Expected result: 27 tests, 0 failures.
+### Step C: Check the Individual Functions
 
-### Step F: Deliberately Breaking the Functions
-
-The steps above check that the functions work correctly on well-formed input. This step does the opposite. It feeds each function input it was never designed to handle, to see whether it fails safely with a clear error message or fails quietly in a way that would leave a user confused about what went wrong.
+Each result below can be checked by hand or against a known value.
 
 ```r
-# 1. Fewer than two points: a baseline needs at least two points to exist
-lower_hull(1, 1)
-noise_estimate(1, 1)
+# Plain rubberband on a small example
+lower_hull(1:5, c(5, 2, 3, 2, 5))
+# Expected: 5 2 2 2 5
 
-# 2. x and y of different lengths: every x value needs a matching y value
-lower_hull(c(1, 2, 3), c(1, 2))
+# Noise estimate on a hand worked example and on a noise free curve
+noise_estimate(1:7, c(0, 0, 1, 0, 0, 0, 0))
+# Expected: 0.6052689  (equal to 1.4826 / sqrt(6))
+noise_estimate(1:10, (1:10)^2)
+# Expected: 0
 
-# 3. A noise value of zero or negative: noise is a threshold, and a threshold
-# of zero or below does not correspond to anything physically meaningful
-detect_concave_segments(1:5, c(0, 1, 2, 1, 0), noise = 0)
-detect_concave_segments(1:5, c(0, 1, 2, 1, 0), noise = -1)
+# Simulated spectrum with a concave baseline
+set.seed(1)
+sim <- simulate_spectrum(baseline = "concave")
+head(sim)
+attr(sim, "noise_sd")
+# Expected: 0.03223082
 
-# 4. Repeated x values: two points sharing the same x is not something any
-# existing test covers, and it is unclear whether the hull algorithm and the
-# interpolation step handle this cleanly or just fail quietly
-lower_hull(c(1, 2, 2, 4, 5), c(5, 3, 1, 3, 5))
+# Concave segment detection
+detect_concave_segments(sim$x, sim$y, peak_width = 300)
+# Expected: one segment flagged TRUE, from x = 13 to x = 1396
+
+# Local bending recovers a parabola shaped dome exactly
+x <- seq(0, 10, length.out = 201)
+dome <- 2 * (1 - ((x - 5) / 5)^2)
+max(abs(refine_segment(x, dome, peak_width = 0.5, noise = 0) - dome))
+# Expected: 0
 ```
 
-The first two lines are already covered by the automated test suite and are expected to produce a clear error. Running them here is just independent confirmation that they behave as documented. The remaining three are not covered by any existing test, so whatever happens here is genuinely new information, and it will show exactly which functions still need input checks added before the package is finished.
+### Step D: Check the S3 Methods
+
+```r
+fit <- correct(sim, peak_width = 300)
+fit
+summary(fit)
+plot(fit)
+plot(fit, which = "corrected")
+
+# Compare with the plain rubberband baseline using the known true baseline
+plain <- correct(sim, method = "rubberband")
+sqrt(mean((plain$baseline - sim$baseline)^2))
+# Expected: 0.7370946
+sqrt(mean((fit$baseline - sim$baseline)^2))
+# Expected: 0.05416515
+```
+
+`print` should show the method, number of points, noise level and number
+of refined segments. `summary` should list the refined segment. The plot
+should show the plain rubberband baseline as a red dashed line, the
+corrected baseline in blue, and the refined segment shaded.
+
+### Step E: Check the Compiled Code
+
+The C++ functions should give exactly the same results as the R versions.
+
+```r
+set.seed(2)
+g <- rnorm(500)
+identical(hullBase:::erode_cpp(g, 20), hullBase:::erode(g, 20))
+# Expected: TRUE
+identical(hullBase:::lower_hull_cpp(1:500, g), hullBase:::lower_hull_r(1:500, g))
+# Expected: TRUE
+```
+
+### Step F: Injecting Errors
+
+Please try the following inputs and report whether each one gives a clear
+error or warning message.
+
+```r
+# 1. Fewer than 5 points
+lower_hull(1:4, 1:4)
+
+# 2. x and y of different lengths
+lower_hull(1:6, 1:5)
+
+# 3. Missing or infinite values
+lower_hull(1:5, c(1, NA, 1, 1, 1))
+noise_estimate(1:5, c(1, 1, Inf, 1, 1))
+
+# 4. Repeated x values
+lower_hull(c(1, 2, 2, 3, 4), 1:5)
+
+# 5. Text instead of numbers
+lower_hull(letters[1:5], 1:5)
+
+# 6. Unevenly spaced x (should give a warning, not an error)
+noise_estimate(c(1, 2, 3, 5, 6, 7), 1:6)
+
+# 7. Missing or invalid peak_width
+correct(sim)
+correct(sim, peak_width = 0)
+correct(sim, peak_width = "wide")
+
+# 8. Invalid settings
+correct(sim, peak_width = 300, noise = -1)
+correct(sim, peak_width = 300, bend_factor = 0.5)
+correct(sim, peak_width = 300, max_depth = 0)
+correct(sim, peak_width = 300, method = "spline")
+
+# 9. A data frame without x and y columns
+correct(data.frame(a = 1:5, b = 1:5))
+
+# 10. Invalid simulation settings
+simulate_spectrum(baseline = "wavy")
+simulate_spectrum(noise_sd = -1)
+simulate_spectrum(peaks = data.frame(height = 1, centre = 5, width = 0))
+
+# 11. Invalid plot option
+plot(fit, which = "both")
+```
+
+## 4. Known Limitations
+
+These are expected behaviours, described in the vignette.
+
+* `peak_width` must cover the widest peak or group of overlapping peaks.
+  If it is too small, overlapping peaks can be mistaken for a concave
+  baseline, for example `peak_width = 100` on the simulated spectrum.
+* A peak wider than `peak_width` is partly removed as background.
+* Like any rubberband baseline, the result sits slightly below the true
+  baseline because the hull rests on the lowest noise values.
