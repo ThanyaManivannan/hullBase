@@ -13,7 +13,6 @@ contains C++ code, so installing on Windows needs
 ```r
 install.packages("devtools")
 devtools::install_github("ThanyaManivannan/hullBase", build_vignettes = TRUE)
-library(hullBase)
 ```
 
 The unit tests are not part of the installed package. To run them, clone
