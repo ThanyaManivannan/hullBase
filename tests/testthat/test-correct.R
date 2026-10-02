@@ -118,3 +118,9 @@ test_that("plot draws both views without error", {
   expect_invisible(plot(fit))
   grDevices::dev.off()
 })
+test_that("correct rejects bad settings", {
+  sim <- simulate_spectrum(noise_sd = 0.01)
+  expect_error(correct(sim, peak_width = 300, bend_factor = 0.5), "1 or more")
+  expect_error(correct(sim, peak_width = 300, max_depth = 0), "1 or more")
+  expect_error(correct(sim, method = "rubberband", noise = -1), "0 or more")
+})

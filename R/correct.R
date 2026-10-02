@@ -55,6 +55,18 @@ correct.default <- function(x, y, peak_width = NULL,
   if (is.null(noise)) {
     noise <- noise_estimate(spec$x, spec$y)
   }
+  if (!is.numeric(noise) || length(noise) != 1 || !is.finite(noise) ||
+      noise < 0) {
+    stop("`noise` must be a single number of 0 or more.", call. = FALSE)
+  }
+  if (!is.numeric(bend_factor) || length(bend_factor) != 1 ||
+      bend_factor < 1) {
+    stop("`bend_factor` must be a single number of 1 or more.", call. = FALSE)
+  }
+  if (!is.numeric(max_depth) || length(max_depth) != 1 || max_depth < 1) {
+    stop("`max_depth` must be a single whole number of 1 or more.",
+         call. = FALSE)
+  }
 
   # plain rubberband baseline, in sorted order
   idx <- lower_hull_cpp(spec$x, spec$y)
