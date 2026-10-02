@@ -80,7 +80,7 @@ detect_concave_segments <- function(x, y, peak_width, noise = NULL) {
     }
     pts <- out$left[s]:out$right[s]
     gap <- spec$y[pts] - base[pts]
-    e <- erode(gap, m)
+    e <- erode_cpp(gap, m)
     out$max_eroded_gap[s] <- max(e)
     out$flagged[s] <- max(e) > threshold
   }
@@ -90,10 +90,11 @@ detect_concave_segments <- function(x, y, peak_width, noise = NULL) {
   out
 }
 
-#' Moving Minimum (Erosion)
+#' Moving Minimum (Erosion) in Plain R
 #'
 #' Replaces every value with the smallest value within `m` positions on
-#' either side. Near the two ends the window is cut short.
+#' either side. Near the two ends the window is cut short. Kept as a
+#' reference for [erode_cpp()], which the package uses.
 #'
 #' @param g Numeric vector.
 #' @param m Window half width, in number of points.

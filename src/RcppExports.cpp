@@ -10,6 +10,18 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// erode_cpp
+NumericVector erode_cpp(NumericVector g, int m);
+RcppExport SEXP _hullBase_erode_cpp(SEXP gSEXP, SEXP mSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type g(gSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    rcpp_result_gen = Rcpp::wrap(erode_cpp(g, m));
+    return rcpp_result_gen;
+END_RCPP
+}
 // lower_hull_cpp
 IntegerVector lower_hull_cpp(NumericVector x, NumericVector y);
 RcppExport SEXP _hullBase_lower_hull_cpp(SEXP xSEXP, SEXP ySEXP) {
@@ -24,6 +36,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_hullBase_erode_cpp", (DL_FUNC) &_hullBase_erode_cpp, 2},
     {"_hullBase_lower_hull_cpp", (DL_FUNC) &_hullBase_lower_hull_cpp, 2},
     {NULL, NULL, 0}
 };

@@ -2,7 +2,7 @@
 % Please edit documentation in R/detect_concave_segments.R
 \name{erode}
 \alias{erode}
-\title{Moving Minimum (Erosion)}
+\title{Moving Minimum (Erosion) in Plain R}
 \usage{
 erode(g, m)
 }
@@ -16,6 +16,7 @@ A numeric vector the same length as \code{g}.
 }
 \description{
 Replaces every value with the smallest value within \code{m} positions on
-either side. Near the two ends the window is cut short.
+either side. Near the two ends the window is cut short. Kept as a
+reference for \code{\link[=erode_cpp]{erode_cpp()}}, which the package uses.
 }
 \keyword{internal}

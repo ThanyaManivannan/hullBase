@@ -114,7 +114,7 @@ bend_segment <- function(x, y, m, threshold, bend_factor, depth) {
   q <- (x - x[1]) * (x - x[n]) / (w / 2)^2
 
   # dome height from the eroded gap over the middle half, times the safety factor
-  e <- erode(gap, m)
+  e <- erode_cpp(gap, m)
   middle <- q <= -0.5
   c_star <- bend_factor * max(e[middle] / -q[middle])
   if (!is.finite(c_star) || c_star <= 0) {
@@ -137,7 +137,7 @@ bend_segment <- function(x, y, m, threshold, bend_factor, depth) {
       }
       pts <- left:right
       rest <- y[pts] - b[pts]
-      if (max(erode(rest, m)) > threshold) {
+      if (max(erode_cpp(rest, m)) > threshold) {
         b[pts] <- b[pts] + bend_segment(x[pts], rest, m, threshold,
                                         bend_factor, depth - 1)
       }

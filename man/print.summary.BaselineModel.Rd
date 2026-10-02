@@ -7,7 +7,7 @@
 \method{print}{summary.BaselineModel}(x, ...)
 }
 \arguments{
-\item{x}{A \code{summary.BaselineModel} object from \code{\link[=summary.BaselineModel]{summary.BaselineModel()}}.}
+\item{x}{A \code{summary.BaselineModel} object from \code{summary()}.}
 
 \item{...}{Not used.}
 }
