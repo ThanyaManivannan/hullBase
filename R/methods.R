@@ -109,6 +109,9 @@ print.summary.BaselineModel <- function(x, ...) {
 #'
 #' @param x A `BaselineModel` object from [correct()].
 #' @param which Either `"baseline"` (default) or `"corrected"`.
+#' @param xlab Label for the x axis.
+#' @param ylab Label for the y axis. If `NULL`, a label is chosen to suit
+#'   the view.
 #' @param ... Further graphical arguments passed to [graphics::plot()].
 #'
 #' @return `x`, invisibly.
@@ -118,37 +121,35 @@ print.summary.BaselineModel <- function(x, ...) {
 #' fit <- correct(sim, peak_width = 300)
 #' plot(fit)
 #' plot(fit, which = "corrected")
+#' plot(fit, xlab = "Raman shift", ylab = "Intensity")
 #'
 #' @importFrom graphics plot lines rect legend abline par
 #' @export
-plot.BaselineModel <- function(x, which = c("baseline", "corrected"), ...) {
+plot.BaselineModel <- function(x, which = c("baseline", "corrected"),
+                               xlab = "Wavenumber", ylab = NULL, ...) {
   which <- match.arg(which)
+  if (is.null(ylab)) {
+    ylab <- if (which == "baseline") "Absorbance" else "Corrected absorbance"
+  }
   ord <- order(x$x)
   xs <- x$x[ord]
-
   if (which == "baseline") {
-    plot(xs, x$y[ord], type = "l", col = "grey40", xlab = "Wavenumber",
-         ylab = "Absorbance", ...)
-
-    # shade the refined segments, then redraw the spectrum on top
+    plot(xs, x$y[ord], type = "l", col = "grey40", xlab = xlab,
+         ylab = ylab, ...)
     if (x$method == "adaptive" && any(x$segments$flagged)) {
       f <- x$segments[x$segments$flagged, ]
       usr <- par("usr")
-      rect(f$x_left, usr[3], f$x_right, usr[4], col = "lightyellow",
-           border = NA)
+      rect(f$x_left, usr[3], f$x_right, usr[4], col = "lightyellow", border = NA)
       lines(xs, x$y[ord], col = "grey40")
     }
-
     lines(xs, x$rubberband[ord], col = "red", lty = 2, lwd = 2)
     lines(xs, x$baseline[ord], col = "blue", lwd = 2)
     legend("topright", legend = c("spectrum", "plain rubberband", "baseline"),
-           col = c("grey40", "red", "blue"), lty = c(1, 2, 1),
-           lwd = c(1, 2, 2), bty = "n")
+           col = c("grey40", "red", "blue"), lty = c(1, 2, 1), lwd = c(1, 2, 2),
+           bty = "n")
   } else {
-    plot(xs, x$corrected[ord], type = "l", xlab = "Wavenumber",
-         ylab = "Corrected absorbance", ...)
+    plot(xs, x$corrected[ord], type = "l", xlab = xlab, ylab = ylab, ...)
     abline(h = 0, col = "grey60", lty = 2)
   }
-
   invisible(x)
 }

@@ -4,12 +4,23 @@
 \alias{plot.BaselineModel}
 \title{Plot a BaselineModel}
 \usage{
-\method{plot}{BaselineModel}(x, which = c("baseline", "corrected"), ...)
+\method{plot}{BaselineModel}(
+  x,
+  which = c("baseline", "corrected"),
+  xlab = "Wavenumber",
+  ylab = NULL,
+  ...
+)
 }
 \arguments{
 \item{x}{A \code{BaselineModel} object from \code{\link[=correct]{correct()}}.}
 
 \item{which}{Either \code{"baseline"} (default) or \code{"corrected"}.}
+
+\item{xlab}{Label for the x axis.}
+
+\item{ylab}{Label for the y axis. If \code{NULL}, a label is chosen to suit
+the view.}
 
 \item{...}{Further graphical arguments passed to \code{\link[graphics:plot]{graphics::plot()}}.}
 }
@@ -27,5 +38,6 @@ sim <- simulate_spectrum(baseline = "concave")
 fit <- correct(sim, peak_width = 300)
 plot(fit)
 plot(fit, which = "corrected")
+plot(fit, xlab = "Raman shift", ylab = "Intensity")
 
 }

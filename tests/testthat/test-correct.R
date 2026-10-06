@@ -118,6 +118,13 @@ test_that("plot draws both views without error", {
   expect_invisible(plot(fit))
   grDevices::dev.off()
 })
+test_that("plot accepts custom axis labels in both views", {
+  set.seed(1)
+  sim <- simulate_spectrum(baseline = "concave")
+  fit <- correct(sim, peak_width = 300)
+  expect_no_error(plot(fit, xlab = "Raman shift", ylab = "Intensity"))
+  expect_no_error(plot(fit, which = "corrected", ylab = "Corrected intensity"))
+})
 test_that("correct rejects bad settings", {
   sim <- simulate_spectrum(noise_sd = 0.01)
   expect_error(correct(sim, peak_width = 300, bend_factor = 0.5), "1 or more")
