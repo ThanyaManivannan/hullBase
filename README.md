@@ -32,11 +32,8 @@ install.packages("remotes")
 remotes::install_github("ThanyaManivannan/hullBase", build_vignettes = TRUE)
 ```
 
-Installing from source compiles C++ code, which on Windows needs
-[Rtools](https://cran.r-project.org/bin/windows/Rtools/). A Windows
-binary `.zip` on the [Releases
-page](https://github.com/ThanyaManivannan/hullBase/releases) installs
-without Rtools.
+Installing from GitHub compiles C++ code, which on Windows needs
+[Rtools](https://cran.r-project.org/bin/windows/Rtools/).
 
 ## Quick start
 
