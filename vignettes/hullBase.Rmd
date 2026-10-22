@@ -1,190 +1,437 @@
 ---
-title: "Introduction to hullBase"
+title: "Getting Started with hullBase: FTIR Baseline Correction"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Introduction to hullBase}
+  %\VignetteIndexEntry{Getting Started with hullBase: FTIR Baseline Correction}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
-                      fig.width = 7, fig.height = 4.5)
+                      fig.width = 7, fig.height = 4.2, out.width = "100%")
+```
+
+## 1. Introduction
+
+An FTIR spectrum records how much infrared light a sample absorbs at each
+wavenumber. The peaks carry the chemical information. Underneath them sits
+a slowly changing background, the baseline, caused by the instrument and
+the sample holder. The baseline has to be removed before peak heights or
+areas can be compared between spectra.
+
+hullBase removes the baseline with the rubberband method and refines it
+where the rubberband is known to fail. This guide covers
+
+* the input the package expects
+* a complete correction and how to read the result
+* how each step of the method works
+* how to test the result on simulated and measured spectra
+* the settings, the limitations and what to do when a result looks wrong
+
+The README gives a shorter introduction.
+
+## 2. The method in brief
+
+**The plain rubberband.** Imagine a rubber band stretched under the
+spectrum. It touches the lowest points and runs straight between them.
+That shape is the lower convex hull of the spectrum, and it is used as the
+baseline.
+
+**Its limitation.** Between two points it touches, a convex hull can only
+be straight or bend upwards. A baseline that bends downwards in some
+region, a concave region, cannot be followed. The hull draws a straight
+line underneath it, and the gap stays in the corrected spectrum.
+
+**The refinement in hullBase.**
+
+1. Build the plain rubberband.
+2. Test each straight segment of it. A segment is flagged when a concave
+   region is hidden under it.
+3. Bend only the flagged segments so the baseline follows the concave
+   region. Every other segment keeps the rubberband line.
+
+**Assumptions.**
+
+* Peaks point upwards, so the data is in absorbance
+* Each peak, or group of overlapping peaks, is narrower than `peak_width`
+* The noise has roughly the same size across the spectrum
+* The first and last points of the spectrum lie on the baseline
+
+## 3. Installation and setup
+
+```{r, eval = FALSE}
+install.packages("remotes")
+remotes::install_github("ThanyaManivannan/hullBase", build_vignettes = TRUE)
 ```
 
 ```{r setup}
 library(hullBase)
 ```
 
-## Overview
+Simulated spectra contain random noise, so `set.seed()` is used before
+each one to make the results repeatable.
 
-hullBase removes the baseline from spectra such as FTIR spectra using the
-rubberband method. The rubberband baseline is the lower convex hull of
-the spectrum, which works well for flat, sloped and bowl shaped
-baselines. It cannot follow a concave (dome shaped) baseline, because a
-convex hull can only bend upwards. Over a dome it draws a straight line
-instead, and part of the background is left in the corrected spectrum.
+## 4. Preparing the input spectrum
 
-This package adds a fix for that limitation. It finds the parts of the
-hull that hide a dome and corrects only those parts by local bending.
+`correct()` accepts two numeric vectors, `x` and `y`, or a data frame
+with columns `x` and `y`. Every input is checked first.
 
-## Example data
+* `x` and `y` are numeric, the same length, with at least 5 points
+* no `NA`, `NaN` or `Inf` values
+* `x` may be in any order, it is sorted and the original order is kept
+* each wavenumber appears only once
+* the spacing of `x` is roughly even, otherwise a warning is given
 
-`simulate_spectrum()` builds a test spectrum with a known baseline,
-following the simulation design of Zhang et al. (2020). The spectrum is
-the sum of Gaussian peaks, a baseline and Gaussian noise.
+Each problem stops with its own message.
 
-$$y = \sum_k a_k \exp\left[-\left(\frac{x - \mu_k}{w_k}\right)^2\right] + b(x) + \varepsilon$$
-
-Here the baseline is a concave arch and the noise level is set by a
-signal to noise ratio of 30 dB.
-
-```{r data}
-set.seed(1)
-sim <- simulate_spectrum(baseline = "concave", snr_db = 30)
-head(sim)
+```{r input-errors}
+try(correct(1:5, 1:4, method = "rubberband"))
+try(correct(c(1, 2, 2, 3, 5, 6), 1:6, method = "rubberband"))
 ```
 
-## Correcting a spectrum
+**Repeated wavenumbers.** Average the values at each repeated wavenumber
+before calling `correct()`.
 
-`correct()` runs the full method and returns a `BaselineModel` object.
-The only setting is `peak_width`, the width of the widest peak or group
-of overlapping peaks.
+```{r repeated}
+raw <- data.frame(x = c(1, 2, 2, 3, 4, 5, 6), y = c(5, 4, 6, 3, 4, 5, 6))
+clean <- aggregate(y ~ x, data = raw, FUN = mean)
+clean
+```
 
-```{r correct}
-fit <- correct(sim, peak_width = 300)
+**Uneven spacing.** Interpolate onto an even grid, for example with
+`approx(x, y, xout = seq(min(x), max(x), by = 1))`.
+
+**Transmittance.** Peaks in transmittance point downwards, so the
+rubberband would sit on the wrong side. Convert to absorbance first with
+A = log10(1/T), for example `y <- log10(1 / transmittance)`.
+
+## 5. A first correction
+
+This example simulates an FTIR spectrum from 400 to 4000 cm^-1^ with ten
+peaks at typical FTIR positions on a concave baseline.
+
+```{r ftir}
+ftir_peaks <- data.frame(
+  height = c(0.30, 0.50, 0.25, 0.90, 0.20, 0.35, 0.60, 0.55, 0.80, 0.25),
+  centre = c(720, 1100, 1160, 1240, 1450, 1650, 1740, 2850, 2920, 3300),
+  width  = c(10, 20, 15, 18, 12, 20, 15, 15, 25, 60))
+
+set.seed(101)
+ftir <- simulate_spectrum(x = seq(400, 4000, by = 1), baseline = "concave",
+                          peaks = ftir_peaks, amplitude = 0.3, snr_db = 30)
+
+fit <- correct(ftir, peak_width = 300)
 fit
-summary(fit)
 ```
 
-The plot shows the plain rubberband baseline (red, dashed) and the
-baseline from the adaptive method (blue). The shaded part is where the
-correction was applied.
+`peak_width = 300` is chosen because the widest peak, at 3300 cm^-1^,
+spans less than 300 cm^-1^.
 
-```{r plot}
+```{r ftir-plot}
 plot(fit)
+```
+
+The plain rubberband runs flat along the bottom of the spectrum. The
+refined baseline follows the concave background, and the refined segment
+is shaded.
+
+```{r ftir-corrected}
 plot(fit, which = "corrected")
 ```
 
-Because the true baseline is known, the error of each method can be
-measured with the root mean square error (RMSE).
+The corrected spectrum sits on zero across the whole range.
 
-```{r rmse}
-rmse <- function(b) sqrt(mean((b - sim$baseline)^2))
-c(rubberband = rmse(fit$rubberband), adaptive = rmse(fit$baseline))
+## 6. Understanding the returned object
+
+`correct()` returns an object of class `BaselineModel`, a list with ten
+fields.
+
+```{r fields}
+class(fit)
+names(fit)
 ```
 
-## How the method works
+* `x`, `y`, the input, in the original order
+* `baseline`, the final baseline
+* `corrected`, the corrected spectrum, `y - baseline`
+* `rubberband`, the plain rubberband, kept for comparison
+* `noise`, the estimated noise standard deviation
+* `peak_width`, `method`, the settings used
+* `segments`, one row per hull segment, with the flag that decided refinement
+* `call`, the function call
 
-**1. Noise level.** `noise_estimate()` uses the median absolute
-deviation of the second differences. A second difference has noise
-variance $6\sigma^2$, so
+The input is split exactly into baseline and corrected spectrum.
 
-$$\hat\sigma = \frac{\mathrm{MAD}(y_{i+1} - 2y_i + y_{i-1})}{\sqrt 6}$$
+```{r identity}
+all.equal(fit$y, fit$baseline + fit$corrected)
+```
 
-**2. Rubberband baseline.** `lower_hull()` finds the lower convex hull
-with the monotone chain algorithm (Andrew 1979) and joins the hull points
-with straight lines.
+`summary()` gives the noise, the threshold and the refined segments.
 
-**3. Finding concave segments.** For each straight segment of the hull,
-`detect_concave_segments()` takes the gap $g_i$ between the data and the
-segment and applies a moving minimum over a window as wide as
-`peak_width`.
+```{r summary}
+summary(fit)
+```
 
-$$e_i = \min_{|j - i| \le m} g_j, \qquad m = \mathrm{round}\left(\frac{\texttt{peak\_width}}{2h}\right)$$
+## 7. How the algorithm works
 
-Peaks are narrower than the window, so they are removed. A dome is wider,
-so it remains. A segment is flagged when the largest $e_i$ is above
-$2\hat\sigma\sqrt{2\ln n}$, twice the universal threshold of Donoho and
-Johnstone (1994).
+This section runs each step on its own, using the simulated spectrum below.
 
-**4. Local bending.** `refine_segment()` adds a bowl $q(x)$ that is zero
-at both ends of the segment, takes the lower hull, and removes the bowl
-again. This is the bending idea of Beleites (2015), applied automatically
-to one segment at a time.
+```{r sim}
+set.seed(1)
+sim <- simulate_spectrum(baseline = "concave", snr_db = 30)
+```
 
-$$q(x) = \frac{(x - x_L)(x - x_R)}{(W/2)^2}, \qquad b = \mathrm{hull}(y + cq) - cq$$
+### 7.1 The lower convex hull
 
-The bend strength $c$ is twice the dome height estimated from $e_i$. A
-parabola needs a strength equal to its height, and other dome shapes need
-more, so the factor of 2 gives a margin.
+`lower_hull()` uses Andrew's monotone chain, a sort then scan approach.
+The points are sorted by `x` and visited once from left to right. Each new
+point removes the earlier kept points that would make a right turn, and
+what is left is the lower convex hull. The turn is decided by the 2D cross
+product of three points O, A and P.
 
-## Choosing peak_width
+$$\operatorname{cross}(O, A, P) = (x_A - x_O)(y_P - y_O) - (y_A - y_O)(x_P - x_O)$$
 
-`peak_width` should cover the widest peak or group of overlapping peaks.
-For a Gaussian peak this is about 2.5 times its full width at half
-maximum. If it is too small, overlapping peaks are mistaken for a dome.
+A value of 0 or less is a right turn, and A is removed. The loop runs in
+C++.
+
+```{r hull}
+rb <- lower_hull(sim$x, sim$y)
+all(rb <= sim$y)
+```
+
+The rubberband never lies above the data.
+
+### 7.2 The noise level
+
+`noise_estimate()` uses the median absolute deviation (MAD) of the second
+differences of the spectrum. Second differences remove the slow baseline
+and most of each peak, so mainly the noise is left. For pure noise of
+standard deviation σ the second difference has variance 6σ², so
+
+$$\hat\sigma = \frac{\operatorname{MAD}(y_{i+1} - 2y_i + y_{i-1})}{\sqrt 6}$$
+
+```{r noise}
+c(estimated = noise_estimate(sim$x, sim$y), true = attr(sim, "noise_sd"))
+```
+
+### 7.3 Finding concave regions
+
+For each straight segment of the hull, `detect_concave_segments()` takes
+the gap between the data and the segment and applies a moving minimum
+over a window as wide as `peak_width`. Peaks are narrower than the window
+and disappear. A concave region is wider and remains. The segment is
+flagged when what remains is above a threshold set from the noise.
+
+$$e_i = \min_{\lvert j - i\rvert \le m} \big(y_j - \text{hull}_j\big), \qquad m = \operatorname{round}\left(\frac{\texttt{peak\_width}}{2h}\right)$$
+
+$$\text{flag the segment if } \max_i e_i > 2\hat\sigma\sqrt{2\ln n}$$
+
+Here h is the typical step between neighbouring wavenumbers and n is the
+number of points.
+
+```{r detect}
+seg <- detect_concave_segments(sim$x, sim$y, peak_width = 300)
+seg
+attr(seg, "threshold")
+```
+
+Only segment 2 is above the threshold, so only that segment is refined.
+
+### 7.4 Refining a flagged segment
+
+`refine_segment()` adds a bowl q(x) that is zero at both ends of the
+segment. The bowl turns the concave region convex, the hull is taken
+again, and the bowl is removed. Taking the smaller of the result and the
+data keeps the baseline under the data.
+
+$$q(x) = \frac{(x - x_L)(x - x_R)}{(W/2)^2}, \qquad b = \min\big(\operatorname{hull}(y + c\,q) - c\,q,\; y\big)$$
+
+The strength c is twice the estimated height of the concave region, so the
+user does not set it. If part of the concave region is still left after
+one bend, the step is repeated, up to `max_depth = 3` times.
+
+```{r refine}
+pts <- seg$left[2]:seg$right[2]
+b <- refine_segment(sim$x[pts], sim$y[pts], peak_width = 300)
+c(rubberband = sqrt(mean((rb[pts] - sim$baseline[pts])^2)),
+  refined    = sqrt(mean((b - sim$baseline[pts])^2)))
+```
+
+Error against the true baseline on that segment, before and after
+refinement.
+
+## 8. Working with simulated spectra
+
+`simulate_spectrum()` builds `y` as peaks + baseline + noise and returns
+each part, so any baseline can be scored against the true one. Five
+baseline shapes are available.
+
+```{r shapes}
+set.seed(7)
+shapes <- c("concave", "mixed", "flat", "linear", "convex")
+rmse <- function(a, b) sqrt(mean((a - b)^2))
+data.frame(shape = shapes, t(sapply(shapes, function(s) {
+  sp <- simulate_spectrum(baseline = s, snr_db = 30)
+  f <- correct(sp, peak_width = 300)
+  c(rubberband = round(rmse(f$rubberband, sp$baseline), 3),
+    hullBase   = round(rmse(f$baseline, sp$baseline), 3))
+})), row.names = NULL)
+```
+
+The error falls on concave and mixed baselines. On flat, linear and convex
+baselines no segment is flagged, so the result equals the plain
+rubberband.
+
+## 9. Working with measured spectra
+
+hullBase does not ship measured spectra. Two public datasets were used in
+testing, and both are loaded from their own packages.
+
+* **SrE.IR**, from the ChemoSpec package, 16 measured FTIR spectra, 14
+  retail saw palmetto extracts and 2 reference oils, GPL 3 licence
+* **paracetamol**, from the hyperSpec package, 1 measured Raman spectrum,
+  GPL 3 or later licence
+
+```{r sre, eval = FALSE}
+library(ChemoSpec)
+data(SrE.IR)
+fit_sre <- correct(SrE.IR$freq, SrE.IR$data[1, ], peak_width = 300)
+plot(fit_sre)
+```
+
+The paracetamol spectrum has repeated wavenumbers and uneven spacing, so
+it is prepared first.
+
+```{r paracetamol, eval = FALSE}
+library(hyperSpec)
+x <- wl(paracetamol)
+y <- as.numeric(paracetamol$spc)
+keep <- x >= 175 & x <= 1800
+grid <- seq(175, 1800, by = 1)
+y_grid <- approx(x[keep], y[keep], xout = grid, ties = mean)$y
+fit_par <- correct(grid, y_grid, peak_width = 300)
+plot(fit_par)
+```
+
+A measured spectrum has no known true baseline. Results on measured data
+are a visual assessment and a plausibility check, for example that the
+corrected spectrum is never negative, not a measure of accuracy.
+
+## 10. Evaluating correction quality
+
+**Baseline error.** On simulated data the root mean squared error (RMSE)
+between the estimated and the true baseline is used, where 0 is perfect.
+
+**Peak preservation.** A closer baseline does not on its own show that
+peaks are kept. In the FTIR example the peak at 2920 cm^-1^ has a true
+height of 0.80.
+
+```{r peak}
+near <- abs(fit$x - 2920) <= 5
+c(true       = 0.80,
+  rubberband = round(max((fit$y - fit$rubberband)[near]), 3),
+  hullBase   = round(max(fit$corrected[near]), 3))
+```
+
+**Noise robustness.** Detection depends on the noise threshold, so the
+error grows as the noise grows.
+
+```{r noise-robust}
+set.seed(11)
+data.frame(snr_db = c(30, 20, 10), t(sapply(c(30, 20, 10), function(s) {
+  sp <- simulate_spectrum(baseline = "concave", snr_db = s)
+  f <- correct(sp, peak_width = 300)
+  c(rubberband = round(rmse(f$rubberband, sp$baseline), 3),
+    hullBase   = round(rmse(f$baseline, sp$baseline), 3),
+    flagged    = sum(f$segments$flagged))
+})))
+```
+
+At 10 dB the concave region can fall below the noise threshold and is
+then not found.
+
+**Runtime.** The hull and the moving minimum are written in C++.
+
+```{r runtime}
+system.time(for (i in 1:20) correct(ftir, peak_width = 300))[["elapsed"]] / 20
+```
+
+Seconds for one correction of the 3601 point FTIR spectrum.
+
+## 11. Settings and advanced use
+
+* **`peak_width`**, the width in the units of `x` of the widest peak or
+  group of overlapping peaks. This is the main setting.
+* **`method`**, `"adaptive"` (default) or `"rubberband"` for the plain
+  rubberband.
+* **`noise`**, a known noise standard deviation, used instead of the
+  estimate.
+* **`bend_factor`**, the safety factor for the bend strength, default 2.
+* **`max_depth`**, the largest number of bending levels, default 3.
+
+**Choosing `peak_width`.** Too small, and a broad peak survives the moving
+minimum and is lifted into the baseline. Too large, and a narrow concave
+region is missed. A good start is a little more than the widest peak
+group.
+
+The FTIR example has a broad peak at 3300 cm^-1^ with a true height of
+0.25. The table shows the baseline error and the height of that peak
+after correction, for several values of `peak_width`.
 
 ```{r peak-width}
-set.seed(3)
-convex <- simulate_spectrum(baseline = "convex")
-sum(detect_concave_segments(convex$x, convex$y, peak_width = 100)$flagged)
-sum(detect_concave_segments(convex$x, convex$y, peak_width = 300)$flagged)
+near3300 <- abs(ftir$x - 3300) <= 5
+data.frame(peak_width = c(50, 100, 300, 800), t(sapply(c(50, 100, 300, 800), function(w) {
+  f <- correct(ftir, peak_width = w)
+  c(baseline_rmse = round(rmse(f$baseline, ftir$baseline), 4),
+    peak_3300     = round(max(f$corrected[near3300]), 3))
+})))
 ```
 
-With `peak_width = 100` two segments are wrongly flagged. With 300 none
-are.
+With `peak_width = 50` the broad peak is wider than the window, so most of
+it is lifted into the baseline. From 300 upwards the peak is kept.
 
-## Results
+The building blocks can also be used on their own, for example
+`lower_hull()` for the plain rubberband only, or
+`detect_concave_segments()` to see which segments would be refined.
 
-Average RMSE over 10 simulated spectra for each baseline shape and noise
-level.
+## 12. Limitations and troubleshooting
 
-```{r results}
-set.seed(2026)
-results <- data.frame()
-for (shape in c("concave", "mixed", "flat", "linear", "convex")) {
-  for (snr in c(30, 25)) {
-    err <- replicate(10, {
-      s <- simulate_spectrum(baseline = shape, snr_db = snr)
-      f <- correct(s, peak_width = 300)
-      c(sqrt(mean((f$rubberband - s$baseline)^2)),
-        sqrt(mean((f$baseline - s$baseline)^2)))
-    })
-    results <- rbind(results, data.frame(shape = shape, snr_db = snr,
-                                         rubberband = round(mean(err[1, ]), 3),
-                                         adaptive = round(mean(err[2, ]), 3)))
-  }
-}
-results
-```
+**Known limitations.**
 
-For concave and mixed baselines the error is much smaller. For flat,
-linear and convex baselines nothing is flagged, so the result is the same
-as the plain rubberband.
+* `peak_width` is chosen by the user, and a peak wider than it is treated
+  as background
+* a concave region lower than about 8 noise standard deviations is not found
+* the baseline is made of straight pieces and is not smooth
+* the lowest noise points pull the baseline slightly below the true baseline
+* the noise is assumed to have the same size across the spectrum
+* a wide peak inside a very large refined region can come out a few
+  percent low
 
-## Compiled code
+**When a result looks wrong.**
 
-The hull and the moving minimum are loops where each step depends on the
-previous one, so they are written in C++ with Rcpp. The moving minimum
-uses a monotone queue (Lemire 2006), so its speed does not depend on the
-window size. Plain R versions are kept in the package for comparison.
+* **A peak looks partly removed.** Increase `peak_width` and check which
+  segments are flagged with `summary(fit)`.
+* **A concave background is left in the result.** Check `summary(fit)`. If
+  `max_eroded_gap` is just under the threshold, the region is too shallow
+  for the noise level, or `peak_width` is too large.
+* **The corrected spectrum looks upside down.** The data is probably
+  transmittance and needs converting to absorbance.
+* **An error about repeated values.** Average the repeated wavenumbers as
+  shown in section 4.
+* **To compare with the plain rubberband**, use
+  `correct(x, y, method = "rubberband")` or the `rubberband` field.
 
-```{r speed}
-x <- seq(400, 4000, length.out = 7200)
-y <- sin(x / 500) + rnorm(7200, 0, 0.01)
-time_it <- function(f) system.time(for (i in 1:50) f())[["elapsed"]]
-c(hull_R = time_it(function() hullBase:::lower_hull_r(x, y)),
-  hull_Cpp = time_it(function() hullBase:::lower_hull_cpp(x, y)),
-  erosion_R = time_it(function() hullBase:::erode(y, 150)),
-  erosion_Cpp = time_it(function() hullBase:::erode_cpp(y, 150)))
-```
+## 13. Summary, references and versions
 
-Times are in seconds for 50 runs.
+hullBase keeps the plain rubberband where it fits and refines only the
+hull segments that hide a concave region, with the location and strength
+set from the noise of the spectrum. On the simulated spectra tested, the
+error falls on concave and mixed baselines and is unchanged on the other
+shapes. Wider use needs further testing on measured spectra and other
+peak shapes.
 
-## Limitations
-
-* A peak wider than `peak_width` looks the same as a dome and is partly
-  removed as background.
-* The hull rests on the lowest noise values, so the baseline sits about
-  two noise standard deviations too low. This is true for any rubberband
-  baseline.
-* Inside a bent segment, a wide peak can be reported a few percent too
-  low.
-* The spectrum should start and end on baseline, because the first and
-  last points always lie on the hull.
-
-## References
+**References**
 
 Andrew, A. M. (1979). Another efficient algorithm for convex hulls in two
 dimensions. Information Processing Letters, 9(5), 216 to 219.
@@ -195,10 +442,13 @@ vignette.
 Donoho, D. L. and Johnstone, I. M. (1994). Ideal spatial adaptation by
 wavelet shrinkage. Biometrika, 81(3), 425 to 455.
 
-Lemire, D. (2006). Streaming maximum minimum filter using no more than
-three comparisons per element. Nordic Journal of Computing, 13(4),
-328 to 339.
-
 Zhang, F., Tang, X., Tong, A., Wang, B. and Wang, J. (2020). An automatic
 baseline correction method based on the penalized least squares method.
 Sensors, 20, 2015.
+
+**Versions used**
+
+```{r versions}
+R.version.string
+packageVersion("hullBase")
+```

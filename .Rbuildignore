@@ -2,3 +2,6 @@
 ^\.Rproj\.user$
 ^LICENSE\.md$
 ^Peer Assessment Plan\.md$
+^README\.Rmd$
+^doc$
+^Meta$
