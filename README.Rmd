@@ -20,9 +20,10 @@ knitr::opts_chunk$set(
 hullBase is an R package for baseline correction of spectra such as Fourier
 transform infrared (FTIR) spectra. It builds the plain rubberband baseline
 (the lower convex hull of the spectrum) and then refines only the hull
-segments that hide a concave region of the background. Where to refine and
-how strongly are calculated from the noise level of the spectrum. The peak
-width is set by the user.
+segments that hide a concave region of the background. Where to refine is
+decided by a threshold calculated from the noise level of the spectrum, and
+how strongly to refine is calculated from the estimated height of the concave
+region. The peak width is set by the user.
 
 ## Key features
 
@@ -79,7 +80,7 @@ refined baseline follows it, and the refined segment is shaded.
 plot(fit, which = "corrected")
 ```
 
-After correction the floor of the spectrum sits at zero.
+After correction the spectrum lies at zero between the peaks.
 
 ```{r error}
 c(rubberband = sqrt(mean((fit$rubberband - sim$baseline)^2)),
@@ -113,7 +114,8 @@ baseline for comparison.
 ## How well it works
 
 Mean RMSE against the true baseline over 20 simulated spectra for each row,
-`peak_width = 300`.
+`peak_width = 300`, with `set.seed(2026)` set once before all 300 spectra
+were simulated.
 
 ```{r results-table, echo = FALSE}
 data.frame(
@@ -148,6 +150,9 @@ for all measured spectra.
 * Noise is assumed to be the same size across the spectrum
 * Repeated wavenumbers stop the correction, and transmittance must be
   converted to absorbance, A = log10(1/T), before calling `correct()`
+* Lorentzian peaks with long overlapping tails can be treated as a concave region
+* The noise estimate assumes the noise is independent between neighbouring
+  points, so smoothed or interpolated spectra may give a wrong noise level
 
 ## Licence and citation
 

@@ -4,9 +4,9 @@
 \name{hullBase-package}
 \alias{hullBase}
 \alias{hullBase-package}
-\title{hullBase: Rubberband Baseline Correction with Automatic Local Bending}
+\title{hullBase: Rubberband Baseline Correction with Local Bending of Concave Regions}
 \description{
-Corrects the baseline of spectra, such as Fourier transform infrared (FTIR) spectra, using the rubberband (lower convex hull) method. A rubberband baseline cannot follow concave regions of the background. This package detects hull segments that hide a concave region and corrects each one by bending it locally before taking the hull, extending the manual bending approach described by Beleites (2015). Where to bend and how strongly are calculated from the spectrum's own noise level, so the only user setting is the expected peak width.
+Corrects the baseline of spectra, such as Fourier transform infrared (FTIR) spectra, using the rubberband (lower convex hull) method. A rubberband baseline cannot follow concave regions of the background. This package detects hull segments that hide a concave region and corrects each one by bending it locally before taking the hull, extending the manual bending approach described by Beleites (2015). Where to bend is decided by a threshold calculated from the spectrum's own noise level, and how strongly to bend is calculated from the estimated height of the concave region, so the only required user setting is the expected peak width.
 }
 \seealso{
 Useful links:

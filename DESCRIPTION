@@ -1,5 +1,5 @@
 Package: hullBase
-Title: Rubberband Baseline Correction with Automatic Local Bending
+Title: Rubberband Baseline Correction with Local Bending of Concave Regions
 Version: 0.1.0
 Authors@R: 
     person("Thanya", "Manivannan", email = "thanyamanivannan@gmail.com", role = c("aut", "cre"))
@@ -9,9 +9,10 @@ Description: Corrects the baseline of spectra, such as Fourier transform
     background. This package detects hull segments that hide a concave
     region and corrects each one by bending it locally before taking the
     hull, extending the manual bending approach described by Beleites
-    (2015). Where to bend and how strongly are calculated from the
-    spectrum's own noise level, so the only user setting is the expected
-    peak width.
+    (2015). Where to bend is decided by a threshold calculated from the
+    spectrum's own noise level, and how strongly to bend is calculated from
+    the estimated height of the concave region, so the only required user
+    setting is the expected peak width.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

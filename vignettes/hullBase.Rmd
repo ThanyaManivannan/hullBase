@@ -140,7 +140,7 @@ is shaded.
 plot(fit, which = "corrected")
 ```
 
-The corrected spectrum sits on zero across the whole range.
+The corrected spectrum lies at zero between the peaks.
 
 ## 6. Understanding the returned object
 
@@ -240,16 +240,17 @@ Only segment 2 is above the threshold, so only that segment is refined.
 
 ### 7.4 Refining a flagged segment
 
-`refine_segment()` adds a bowl q(x) that is zero at both ends of the
-segment. The bowl turns the concave region convex, the hull is taken
-again, and the bowl is removed. Taking the smaller of the result and the
+`refine_segment()` adds a bending curve q(x) that is zero at both ends of the
+segment. The bending curve turns the concave region convex, the hull is taken
+again, and the bending curve is removed. Taking the smaller of the result and the
 data keeps the baseline under the data.
 
 $$q(x) = \frac{(x - x_L)(x - x_R)}{(W/2)^2}, \qquad b = \min\big(\operatorname{hull}(y + c\,q) - c\,q,\; y\big)$$
 
 The strength c is twice the estimated height of the concave region, so the
-user does not set it. If part of the concave region is still left after
-one bend, the step is repeated, up to `max_depth = 3` times.
+user does not need to set it, although it can be changed with `bend_factor`.
+If part of the concave region is still left after one bend, the step is
+repeated, up to `max_depth = 3` levels.
 
 ```{r refine}
 pts <- seg$left[2]:seg$right[2]
@@ -407,6 +408,10 @@ The building blocks can also be used on their own, for example
 * the noise is assumed to have the same size across the spectrum
 * a wide peak inside a very large refined region can come out a few
   percent low
+* Lorentzian peaks with long overlapping tails can be treated as a concave
+  region
+* the noise estimate assumes the noise is independent between neighbouring
+  points, so smoothed or interpolated spectra may give a wrong noise level
 
 **When a result looks wrong.**
 
@@ -425,11 +430,10 @@ The building blocks can also be used on their own, for example
 ## 13. Summary, references and versions
 
 hullBase keeps the plain rubberband where it fits and refines only the
-hull segments that hide a concave region, with the location and strength
-set from the noise of the spectrum. On the simulated spectra tested, the
-error falls on concave and mixed baselines and is unchanged on the other
-shapes. Wider use needs further testing on measured spectra and other
-peak shapes.
+hull segments that hide a concave region. The segments to refine are found
+with a threshold set from the noise of the spectrum, and the bending
+strength is set from the estimated height of the concave region. On the
+simulated spectra tested, the
 
 **References**
 
