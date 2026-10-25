@@ -165,16 +165,16 @@ established for all measured spectra.
 
 - `peak_width` is chosen by the user, and a peak wider than it is
   treated as background
-- A concave region lower than about 8 noise standard deviations is not
-  found
+- A concave region lower than about 7.6 noise standard deviations is not
+  found on the simulated spectra
 - The baseline is made of straight pieces and is not smooth
 - The lowest noise points pull the baseline slightly below the true
   baseline
 - Noise is assumed to be the same size across the spectrum
 - Repeated wavenumbers stop the correction, and transmittance must be
   converted to absorbance, A = log10(1/T), before calling `correct()`
-- Lorentzian peaks with long overlapping tails can be treated as a
-  concave region
+- Only Gaussian peaks were evaluated, so Lorentzian peaks have not been
+  tested
 - The noise estimate assumes the noise is independent between
   neighbouring points, so smoothed or interpolated spectra may give a
   wrong noise level
