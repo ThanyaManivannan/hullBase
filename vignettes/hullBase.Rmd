@@ -309,7 +309,7 @@ library(hyperSpec)
 x <- wl(paracetamol)
 y <- as.numeric(paracetamol$spc)
 keep <- x >= 175 & x <= 1800
-grid <- seq(175, 1800, by = 1)
+grid <- seq(ceiling(min(x[keep])), floor(max(x[keep])), by = 1)
 y_grid <- approx(x[keep], y[keep], xout = grid, ties = mean)$y
 fit_par <- correct(grid, y_grid, peak_width = 300)
 plot(fit_par)
@@ -402,14 +402,11 @@ The building blocks can also be used on their own, for example
 
 * `peak_width` is chosen by the user, and a peak wider than it is treated
   as background
-* a concave region lower than about 8 noise standard deviations is not found
+* a concave region lower than about 7.6 noise standard deviations on the stimulated spectra
 * the baseline is made of straight pieces and is not smooth
 * the lowest noise points pull the baseline slightly below the true baseline
 * the noise is assumed to have the same size across the spectrum
-* a wide peak inside a very large refined region can come out a few
-  percent low
-* Lorentzian peaks with long overlapping tails can be treated as a concave
-  region
+* only Gaussian peaks were evaluated, so Lorentzian peaks have not been tested
 * the noise estimate assumes the noise is independent between neighbouring
   points, so smoothed or interpolated spectra may give a wrong noise level
 
@@ -433,7 +430,7 @@ hullBase keeps the plain rubberband where it fits and refines only the
 hull segments that hide a concave region. The segments to refine are found
 with a threshold set from the noise of the spectrum, and the bending
 strength is set from the estimated height of the concave region. On the
-simulated spectra tested, the
+simulated spectra tested, the baseline error fell on concave and mixed baselines and was unchanged on flat, linear and convex baselines.
 
 **References**
 
