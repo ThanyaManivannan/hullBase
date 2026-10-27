@@ -30,8 +30,8 @@ width is set by the user.
 hullBase is not on CRAN. Install the development version from GitHub.
 
 ``` r
-install.packages("remotes")
-remotes::install_github("ThanyaManivannan/hullBase", build_vignettes = TRUE)
+install.packages("pak")
+pak::pak("ThanyaManivannan/hullBase")
 ```
 
 Installing from GitHub compiles C++ code, which on Windows needs
@@ -152,7 +152,7 @@ established for all measured spectra.
 
 ## Documentation
 
-- User guide, `vignette("hullBase")`
+- User guide, the vignette in the `vignettes` folder on GitHub
 - Help pages, for example `?correct` and `?simulate_spectrum`
 - Measured example spectra used in testing are loaded from other
   packages and are not shipped with hullBase. SrE.IR comes from

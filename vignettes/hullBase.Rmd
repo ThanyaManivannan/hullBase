@@ -61,8 +61,8 @@ line underneath it, and the gap stays in the corrected spectrum.
 ## 3. Installation and setup
 
 ```{r, eval = FALSE}
-install.packages("remotes")
-remotes::install_github("ThanyaManivannan/hullBase", build_vignettes = TRUE)
+install.packages("pak")
+pak::pak("ThanyaManivannan/hullBase")
 ```
 
 ```{r setup}
